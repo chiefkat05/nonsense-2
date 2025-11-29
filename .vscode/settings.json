@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "*.c": "c",
+        "math.h": "c",
+        "chrono": "c",
+        "text_encoding": "c",
+        "typeindex": "c",
+        "typeinfo": "c",
+        "glew.h": "c",
+        "definitions.h": "c",
+        "models.h": "c",
+        "cglm.h": "c",
+        "chiefkat_opengl.h": "c",
+        "glfw3.h": "c",
+        "complex": "c",
+        "chiefkat_math.h": "c",
+        "png.h": "c",
+        "jpeglib.h": "c"
+    }
+}
