@@ -12,5 +12,6 @@ typedef struct
 } bmp_data;
 
 bmp_data read_bmp(const char *path);
+void free_image(bmp_data *image);
 
 #endif

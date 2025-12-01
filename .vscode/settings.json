@@ -15,6 +15,10 @@
         "complex": "c",
         "chiefkat_math.h": "c",
         "png.h": "c",
-        "jpeglib.h": "c"
+        "jpeglib.h": "c",
+        "chiefkat_bmp.h": "c",
+        "shader.h": "c",
+        "chunk.h": "c",
+        "physics.h": "c"
     }
 }

@@ -1,4 +1,4 @@
-#include "chiefkat_opengl.h"
+#include "shader.h"
 
 void create_shader(shader_list *list, shader_name name, const char *vs_path, const char *fs_path)
 {
@@ -14,7 +14,6 @@ void create_shader(shader_list *list, shader_name name, const char *vs_path, con
     {
         vs_source[vertex_file_length++] = '\0';
     }
-    // null terminate if not done so already
 
     const char *vertex_source = vs_source;
 
@@ -74,66 +73,6 @@ void create_shader(shader_list *list, shader_name name, const char *vs_path, con
     list->shader_exists_list[name] = true;
 }
 
-void create_model(model_list *list, model_name name, int *vertices, int vertex_count)
-{
-    int stride = 3;
-
-    glGenVertexArrays(1, &list->VAO_list[name]);
-    glGenBuffers(1, &list->VBO_list[name]);
-
-    glBindVertexArray(list->VAO_list[name]);
-    glBindBuffer(GL_ARRAY_BUFFER, list->VBO_list[name]);
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(int) * stride * vertex_count, vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_INT, GL_FALSE, stride * sizeof(GL_INT), (void *)0);
-    glEnableVertexAttribArray(0);
-
-    list->vertex_count[name] = vertex_count;
-}
-void create_model_texture(model_list *list, model_name name, int *vertices, int vertex_count)
-{
-    int stride = 3, tex_stride = 2;
-    int total_stride = 5;
-
-    glGenVertexArrays(1, &list->VAO_list[name]);
-    glGenBuffers(1, &list->VBO_list[name]);
-
-    glBindVertexArray(list->VAO_list[name]);
-    glBindBuffer(GL_ARRAY_BUFFER, list->VBO_list[name]);
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(int) * total_stride * vertex_count, vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, stride, GL_INT, GL_FALSE, total_stride * sizeof(GL_INT), (void *)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, tex_stride, GL_INT, GL_FALSE, total_stride * sizeof(GL_INT), (void *)(stride * sizeof(GL_INT)));
-    glEnableVertexAttribArray(1);
-
-    list->vertex_count[name] = vertex_count;
-}
-void create_model_texture_normals(model_list *list, model_name name, int *vertices, int vertex_count)
-{
-    int stride = 3, tex_stride = 2, norm_stride = 3;
-    int total_stride = 8;
-
-    glGenVertexArrays(1, &list->VAO_list[name]);
-    glGenBuffers(1, &list->VBO_list[name]);
-
-    glBindVertexArray(list->VAO_list[name]);
-    glBindBuffer(GL_ARRAY_BUFFER, list->VBO_list[name]);
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(int) * total_stride * vertex_count, vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, stride, GL_INT, GL_FALSE, total_stride * sizeof(GL_INT), (void *)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, tex_stride, GL_INT, GL_FALSE, total_stride * sizeof(GL_INT), (void *)(stride * sizeof(GL_INT)));
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(2, norm_stride, GL_INT, GL_FALSE, total_stride * sizeof(GL_INT), (void *)((stride + tex_stride) * sizeof(GL_INT)));
-    glEnableVertexAttribArray(2);
-
-    list->vertex_count[name] = vertex_count;
-}
-
 void use_shader(shader_list *list, shader_name name)
 {
     if (!list->shader_exists_list[name])
@@ -142,12 +81,6 @@ void use_shader(shader_list *list, shader_name name)
     }
     glUseProgram(list->id_list[name]);
 }
-void draw_model(model_list *list, model_name name)
-{
-    glBindVertexArray(list->VAO_list[name]);
-    glDrawArrays(GL_TRIANGLES, 0, list->vertex_count[name]);
-}
-
 void shader_set_float(shader_list *list, shader_name name, const char *uniform_name, double value)
 {
     use_shader(list, name);
@@ -155,6 +88,12 @@ void shader_set_float(shader_list *list, shader_name name, const char *uniform_n
     glUniform1f(uniform_location, value);
 }
 void shader_set_int(shader_list *list, shader_name name, const char *uniform_name, int value)
+{
+    use_shader(list, name);
+    int uniform_location = glGetUniformLocation(list->id_list[name], uniform_name);
+    glUniform1i(uniform_location, value);
+}
+void shader_set_bool(shader_list *list, shader_name name, const char *uniform_name, bool value)
 {
     use_shader(list, name);
     int uniform_location = glGetUniformLocation(list->id_list[name], uniform_name);
@@ -229,7 +168,7 @@ void camera_update(camera *cam, double yaw_update, double pitch_update, double d
     glm_lookat(cam->pos, cam->target, cam->up, cam->view);
 }
 
-int texture_load_from_bmp(int index, const char *path)
+int texture_load_from_bmp(int index, const char *path, unsigned int *width, unsigned int *height)
 {
     bmp_data image = read_bmp(path);
     unsigned int texture = index;
@@ -244,6 +183,11 @@ int texture_load_from_bmp(int index, const char *path)
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
     glGenerateMipmap(GL_TEXTURE_2D);
+
+    *width = image.width;
+    *height = image.height;
+
+    free_image(&image);
 
     return texture;
 }

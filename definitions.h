@@ -10,6 +10,11 @@
 #include <errno.h>
 #include <time.h>
 
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+// so help me when I fix my math library this here include is getting the boot
+#include <cglm/cglm.h>
+
 typedef uint8_t byte;
 typedef uint16_t two_bytes;
 typedef uint32_t four_bytes;

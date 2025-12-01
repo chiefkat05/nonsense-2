@@ -30,3 +30,8 @@ bmp_data read_bmp(const char *path)
 
     return image;
 }
+
+void free_image(bmp_data *image)
+{
+    free(image->data);
+}
