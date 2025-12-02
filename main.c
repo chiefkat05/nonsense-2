@@ -11,16 +11,12 @@ static int global_window_height;
 void framebuffer_size(GLFWwindow *window, int width, int height);
 void process_input(GLFWwindow *window, camera *cam, double delta_time);
 
-// texture atlas
-// limit chunk editing to inside chunk
-// chunk mesh generator
-// collision detection
-
 typedef struct
 {
     chunk *chunk_list;
     int chunk_count;
     int world_x_count, world_y_count, world_z_count;
+    int x, y, z;
     unsigned int texture_id, texture_width, texture_height;
     int lookat_block, placement_block;
     int lookat_block_normal;
@@ -44,62 +40,183 @@ int world_get_chunk_from_position(world *w, int x, int y, int z)
 }
 
 // I haven't the slightest idea, thank you to Ross Millikan from https://math.stackexchange.com/questions/19765/calculating-coordinates-from-a-flattened-3d-array-when-you-know-the-size-index
-void world_get_position_from_chunk(world *w, int i, vec3 output)
+void world_get_position_from_chunk(world *w, int i, vec3 output, int line)
 {
+    verify(i >= 0 && i < w->world_x_count * w->world_y_count * w->world_z_count, "trying to get position of non-existant chunk", line);
+
     int z = i / (w->world_x_count * w->world_y_count);
     int y = (i - (z * w->world_x_count * w->world_y_count)) / w->world_x_count;
     int x = i - (z * w->world_x_count * w->world_y_count) - (y * w->world_x_count);
     glm_vec3_copy((vec3){x, y, z}, output);
 }
+
+void world_break_block(world *w)
+{
+    if (w->lookat_block < 0)
+        return;
+    w->chunk_list[w->lookat_chunk].blocks[w->lookat_block].id = BLOCK_NULL;
+    w->chunk_list[w->lookat_chunk].dirty = true;
+
+    vec3 block_pos = {};
+    chunk_get_position_from_block(&w->chunk_list[w->lookat_chunk], w->lookat_block, block_pos, __LINE__);
+
+    int x = block_pos[0];
+    int y = block_pos[1];
+    int z = block_pos[2];
+
+    int chunk_update_normal_x = 0, chunk_update_normal_y = 0, chunk_update_normal_z = 0;
+
+    if (x == 0)
+        chunk_update_normal_x = -1;
+    if (x + 1 >= CHUNK_EDGE_LENGTH)
+        chunk_update_normal_x = 1;
+    if (y == 0)
+        chunk_update_normal_y = -1;
+    if (y + 1 >= CHUNK_EDGE_LENGTH)
+        chunk_update_normal_y = 1;
+    if (z == 0)
+        chunk_update_normal_z = -1;
+    if (z + 1 >= CHUNK_EDGE_LENGTH)
+        chunk_update_normal_z = 1;
+
+    vec3 chunk_pos = {};
+    world_get_position_from_chunk(w, w->lookat_chunk, chunk_pos, __LINE__);
+    int chx = chunk_pos[0];
+    int chy = chunk_pos[1];
+    int chz = chunk_pos[2];
+
+    if (chunk_update_normal_x != 0)
+    {
+        int upd_index = world_get_chunk_from_position(w, chx + chunk_update_normal_x, chy, chz);
+        w->chunk_list[upd_index].dirty = true;
+    }
+    if (chunk_update_normal_y != 0)
+    {
+        int upd_index = world_get_chunk_from_position(w, chx, chy + chunk_update_normal_y, chz);
+        w->chunk_list[upd_index].dirty = true;
+    }
+    if (chunk_update_normal_z != 0)
+    {
+        int upd_index = world_get_chunk_from_position(w, chx, chy, chz + chunk_update_normal_z);
+        w->chunk_list[upd_index].dirty = true;
+    }
+}
+void world_place_block(world *w)
+{
+    int chunk_size = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
+    int slab_size = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
+    int row_size = CHUNK_EDGE_LENGTH;
+
+    int new_block_pos = -1;
+    int x = w->placement_block % CHUNK_EDGE_LENGTH;
+    int y = (w->placement_block / CHUNK_EDGE_LENGTH) % CHUNK_EDGE_LENGTH;
+    int z = w->placement_block / (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH);
+    switch (w->lookat_block_normal)
+    {
+    case 5:
+        // pos z
+        new_block_pos = w->placement_block + slab_size;
+        ++z;
+        break;
+    case 4:
+        // neg z
+        new_block_pos = w->placement_block - slab_size;
+        --z;
+        break;
+    case 3:
+        // pos y
+        new_block_pos = w->placement_block + row_size;
+        ++y;
+        break;
+    case 2:
+        // neg y
+        new_block_pos = w->placement_block - row_size;
+        --y;
+        break;
+    case 1:
+        // pos x
+        new_block_pos = w->placement_block + 1;
+        ++x;
+        break;
+    case 0:
+        // neg x
+        new_block_pos = w->placement_block - 1;
+        --x;
+        break;
+    default:
+        break;
+    }
+
+    if (new_block_pos > -1 && new_block_pos < chunk_size)
+    {
+        w->chunk_list[w->placement_chunk].blocks[new_block_pos].id = BLOCK_ROCK;
+        w->chunk_list[w->placement_chunk].dirty = true;
+    }
+}
 void world_chunk_generation(world *w)
 {
     w->world_x_count = 10;
-    w->world_y_count = 2;
+    w->world_y_count = 1;
     w->world_z_count = 10;
     int total_world_size = w->world_x_count * w->world_y_count * w->world_z_count;
     w->chunk_list = (chunk *)malloc(sizeof(chunk) * total_world_size);
     verify(w->chunk_list, "failed to allocate world chunk area", __LINE__);
+
+    // generation step
     for (int z = 0; z < w->world_z_count; ++z)
     {
         for (int y = 0; y < w->world_y_count; ++y)
         {
-            for (int x = 0; x < w->world_x_count; ++x)
-            {
+            for (int x = 0; x < w->world_x_count; ++x) // figure out how to have negative chunks. You'll probably need to take away the single array of chunks, but idk what you'd replace it with
+            {                                          // you could do an arbitrary array/pool, but then you'd need to go through each use of world_get_chunk_pos or world_get_chunk_id and replace it with a held world variable or something
                 int chunk_index = world_get_chunk_from_position(w, x, y, z);
 
-                chunk_generation(&w->chunk_list[chunk_index], z, y, x);
+                chunk_generation(&w->chunk_list[chunk_index], x, y, z);
                 chunk_allocate(&w->chunk_list[chunk_index]);
                 w->chunk_list[chunk_index].texture_id = w->texture_id;
                 w->chunk_list[chunk_index].texture_width = w->texture_width;
                 w->chunk_list[chunk_index].texture_height = w->texture_height;
 
-                // messy please make better
-                chunk *left_chunk = NULL, *right_chunk = NULL, *forwards_chunk = NULL, *backwards_chunk = NULL, *up_chunk = NULL, *down_chunk = NULL;
-                int left_chunk_index = -1, right_chunk_index = -1, forwards_chunk_index = -1, backwards_chunk_index = -1, up_chunk_index = -1, down_chunk_index = -1;
-                left_chunk_index = world_get_chunk_from_position(w, x - 1, y, z);
-                right_chunk_index = world_get_chunk_from_position(w, x + 1, y, z);
-                forwards_chunk_index = world_get_chunk_from_position(w, x, y, z + 1);
-                backwards_chunk_index = world_get_chunk_from_position(w, x, y, z - 1);
-                up_chunk_index = world_get_chunk_from_position(w, x, y + 1, z);
-                down_chunk_index = world_get_chunk_from_position(w, x, y - 1, z);
-
-                if (left_chunk_index != -1)
-                    left_chunk = &w->chunk_list[left_chunk_index];
-                if (right_chunk_index != -1)
-                    right_chunk = &w->chunk_list[right_chunk_index];
-                if (forwards_chunk_index != -1)
-                    forwards_chunk = &w->chunk_list[forwards_chunk_index];
-                if (backwards_chunk_index != -1)
-                    backwards_chunk = &w->chunk_list[backwards_chunk_index];
-                if (up_chunk_index != -1)
-                    up_chunk = &w->chunk_list[up_chunk_index];
-                if (down_chunk_index != -1)
-                    down_chunk = &w->chunk_list[down_chunk_index];
-
-                build_chunk_mesh(&w->chunk_list[chunk_index], left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk);
                 ++w->chunk_count;
             }
         }
+    }
+
+    // mesh build step (must come after because you need the completed chunks for cross-mesh optimization)
+    for (int i = 0; i < total_world_size; ++i)
+    {
+        vec3 chunk_pos = {};
+        world_get_position_from_chunk(w, i, chunk_pos, __LINE__);
+        int x = chunk_pos[0], y = chunk_pos[1], z = chunk_pos[2];
+
+        // messy please make better
+        chunk *left_chunk = NULL, *right_chunk = NULL, *forwards_chunk = NULL, *backwards_chunk = NULL, *up_chunk = NULL, *down_chunk = NULL;
+        int left_chunk_index = -1, right_chunk_index = -1, forwards_chunk_index = -1, backwards_chunk_index = -1, up_chunk_index = -1, down_chunk_index = -1;
+        left_chunk_index = world_get_chunk_from_position(w, x - 1, y, z);
+        right_chunk_index = world_get_chunk_from_position(w, x + 1, y, z);
+        forwards_chunk_index = world_get_chunk_from_position(w, x, y, z + 1);
+        backwards_chunk_index = world_get_chunk_from_position(w, x, y, z - 1);
+        up_chunk_index = world_get_chunk_from_position(w, x, y + 1, z);
+        down_chunk_index = world_get_chunk_from_position(w, x, y - 1, z);
+
+        vec3 left_position = {};
+        if (left_chunk_index > -1)
+            world_get_position_from_chunk(w, left_chunk_index, left_position, __LINE__);
+
+        if (left_chunk_index != -1)
+            left_chunk = &w->chunk_list[left_chunk_index];
+        if (right_chunk_index != -1)
+            right_chunk = &w->chunk_list[right_chunk_index];
+        if (forwards_chunk_index != -1)
+            forwards_chunk = &w->chunk_list[forwards_chunk_index];
+        if (backwards_chunk_index != -1)
+            backwards_chunk = &w->chunk_list[backwards_chunk_index];
+        if (up_chunk_index != -1)
+            up_chunk = &w->chunk_list[up_chunk_index];
+        if (down_chunk_index != -1)
+            down_chunk = &w->chunk_list[down_chunk_index];
+
+        build_chunk_mesh(&w->chunk_list[i], left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk);
     }
 }
 void world_chunk_update(world *w, camera *cam, shader_list *shaders)
@@ -116,23 +233,50 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders)
         {
             int temp_lookat = -1;
             int temp_lookat_chunk_norm = -1;
-            update_chunk(&w->chunk_list[i], cam, &temp_lookat, &w->lookat_block_normal, &lookat_block_distance, &temp_lookat_chunk_norm);
+
+            int x = w->chunk_list[i].x;
+            int y = w->chunk_list[i].y;
+            int z = w->chunk_list[i].z;
+            chunk *left_chunk = NULL, *right_chunk = NULL, *forwards_chunk = NULL, *backwards_chunk = NULL, *up_chunk = NULL, *down_chunk = NULL;
+            int left_chunk_index = -1, right_chunk_index = -1, forwards_chunk_index = -1, backwards_chunk_index = -1, up_chunk_index = -1, down_chunk_index = -1;
+            left_chunk_index = world_get_chunk_from_position(w, x - 1, y, z);
+            right_chunk_index = world_get_chunk_from_position(w, x + 1, y, z);
+            forwards_chunk_index = world_get_chunk_from_position(w, x, y, z + 1);
+            backwards_chunk_index = world_get_chunk_from_position(w, x, y, z - 1);
+            up_chunk_index = world_get_chunk_from_position(w, x, y + 1, z);
+            down_chunk_index = world_get_chunk_from_position(w, x, y - 1, z);
+
+            if (left_chunk_index != -1)
+                left_chunk = &w->chunk_list[left_chunk_index];
+            if (right_chunk_index != -1)
+                right_chunk = &w->chunk_list[right_chunk_index];
+            if (forwards_chunk_index != -1)
+                forwards_chunk = &w->chunk_list[forwards_chunk_index];
+            if (backwards_chunk_index != -1)
+                backwards_chunk = &w->chunk_list[backwards_chunk_index];
+            if (up_chunk_index != -1)
+                up_chunk = &w->chunk_list[up_chunk_index];
+            if (down_chunk_index != -1)
+                down_chunk = &w->chunk_list[down_chunk_index];
+
+            update_chunk(&w->chunk_list[i], left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk,
+                         cam, &temp_lookat, &w->lookat_block_normal, &lookat_block_distance, &temp_lookat_chunk_norm);
             if (temp_lookat != -1)
             {
                 w->lookat_chunk = i;
                 vec3 current_chunk_position = {};
-                world_get_position_from_chunk(w, i, current_chunk_position);
+                world_get_position_from_chunk(w, i, current_chunk_position, __LINE__);
                 vec3 new_chunk_position = {};
                 glm_vec3_copy(current_chunk_position, new_chunk_position);
                 w->placement_block = temp_lookat;
                 switch (temp_lookat_chunk_norm)
                 {
                 case 0: // x
-                    --new_chunk_position[2];
+                    --new_chunk_position[0];
                     w->placement_block += CHUNK_EDGE_LENGTH;
                     break;
                 case 1:
-                    ++new_chunk_position[2];
+                    ++new_chunk_position[0];
                     w->placement_block -= CHUNK_EDGE_LENGTH;
                     break;
                 case 2: // y
@@ -144,18 +288,16 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders)
                     w->placement_block -= CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
                     break;
                 case 4: // z
-                    --new_chunk_position[0];
+                    --new_chunk_position[2];
                     w->placement_block += (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH);
                     break;
                 case 5:
-                    ++new_chunk_position[0];
+                    ++new_chunk_position[2];
                     w->placement_block -= (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH);
                     break;
                 }
                 w->lookat_block = temp_lookat;
                 w->placement_chunk = world_get_chunk_from_position(w, new_chunk_position[0], new_chunk_position[1], new_chunk_position[2]);
-                if (w->placement_chunk < 0 || w->placement_chunk > (w->world_x_count * w->world_y_count * w->world_z_count))
-                    w->placement_chunk = i;
             }
             draw_chunk(&w->chunk_list[i], shaders, w->lookat_block);
         }
@@ -233,7 +375,7 @@ int main()
 
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !left_held)
         {
-            break_chunk_block(&test_world.chunk_list[test_world.lookat_chunk], test_world.lookat_block);
+            world_break_block(&test_world);
             left_held = true;
         }
         if (!glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1))
@@ -242,12 +384,7 @@ int main()
         }
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2) && !right_held)
         {
-            // pass in the correct chunk here
-            vec3 chunk_place_pos = {};
-            world_get_position_from_chunk(&test_world, test_world.placement_chunk, chunk_place_pos);
-            // printf("trying to place in chunk %i at position %f %f %f\n", test_world.placement_chunk,
-            //        chunk_place_pos[0], chunk_place_pos[1], chunk_place_pos[2]);
-            place_chunk_block(&test_world.chunk_list[test_world.placement_chunk], test_world.placement_block, test_world.lookat_block_normal);
+            world_place_block(&test_world);
             right_held = true;
         }
         if (!glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2))

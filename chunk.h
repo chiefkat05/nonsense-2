@@ -25,10 +25,12 @@ void chunk_allocate(chunk *c);
 void chunk_free(chunk *c);
 
 void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chunk *backwards, chunk *up, chunk *down);
-void update_chunk(chunk *c, camera *cam, int *lookat_block, int *lookat_block_normal, double *lookat_block_distance, int *lookat_chunk_normal);
+void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwards_chunk,
+                  chunk *backwards_chunk, chunk *up_chunk, chunk *down_chunk, camera *cam,
+                  int *lookat_block, int *lookat_block_normal, double *lookat_block_distance, int *lookat_chunk_normal);
 void draw_chunk(chunk *c, shader_list *shaders, int lookat_block);
-void break_chunk_block(chunk *c, int lookat_block);
 
-void place_chunk_block(chunk *c, int origin_block, int origin_normal);
+int chunk_get_block_from_position(chunk *c, int x, int y, int z);
+void chunk_get_position_from_block(chunk *c, int i, vec3 output, int line);
 
 #endif

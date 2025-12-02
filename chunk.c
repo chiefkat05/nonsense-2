@@ -1,5 +1,28 @@
 #include "chunk.h"
 
+int chunk_get_block_from_position(chunk *c, int x, int y, int z)
+{
+    int chunk_slab = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
+    int chunk_row = CHUNK_EDGE_LENGTH;
+
+    if (x < 0 || x >= CHUNK_EDGE_LENGTH || y < 0 || y >= CHUNK_EDGE_LENGTH || z < 0 || z >= CHUNK_EDGE_LENGTH)
+    {
+        return -1;
+    }
+    return z * chunk_slab + y * chunk_row + x;
+}
+void chunk_get_position_from_block(chunk *c, int i, vec3 output, int line)
+{
+    const int chunk_total = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
+    const int chunk_slab = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
+    const int chunk_row = CHUNK_EDGE_LENGTH;
+    verify(i >= 0 && i < chunk_total, "trying to get position of non-existant block", line);
+
+    int z = i / (chunk_slab);
+    int y = (i - (z * chunk_slab)) / chunk_row;
+    int x = i - (z * chunk_slab) - (y * chunk_row);
+    glm_vec3_copy((vec3){x, y, z}, output);
+}
 void chunk_generation(chunk *c, int _x, int _y, int _z)
 {
     c->x = _x;
@@ -12,12 +35,12 @@ void chunk_generation(chunk *c, int _x, int _y, int _z)
             for (int x = 0; x < CHUNK_EDGE_LENGTH; ++x)
             {
                 voxel v = {
-                    .id = BLOCK_GRASS,
+                    .id = BLOCK_NULL,
                 };
-                // if (y < 3)
-                //     v.id = BLOCK_ROCK;
-                // if (y > 2 && y < 4)
-                //     v.id = BLOCK_GRASS;
+                if (y < 3)
+                    v.id = BLOCK_ROCK;
+                if (y > 2 && y < 4)
+                    v.id = BLOCK_GRASS;
 
                 c->blocks[z * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH + y * CHUNK_EDGE_LENGTH + x] = v;
             }
@@ -51,9 +74,16 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         {
             continue;
         }
-        int x = block_index % CHUNK_EDGE_LENGTH;
-        int y = (block_index / CHUNK_EDGE_LENGTH) % CHUNK_EDGE_LENGTH;
-        int z = (block_index / (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH));
+        // int z = block_index % CHUNK_EDGE_LENGTH;
+        // int y = (block_index / CHUNK_EDGE_LENGTH) % CHUNK_EDGE_LENGTH;
+        // int x = (block_index / (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH));
+        vec3 block_pos = {};
+        chunk_get_position_from_block(c, block_index, block_pos, __LINE__);
+        int x = block_pos[0];
+        int y = block_pos[1];
+        int z = block_pos[2];
+
+        // printf("block %i pos %i %i %i\n", block_index, x, y, z);
         int v_count = sizeof(block_vertices) / sizeof(block_vertices[0]);
         int cube_tri_count = 36;
         int vertex_data_size = v_count / cube_tri_count;
@@ -64,7 +94,6 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         int block_mesh_size = 0;
         int normal_index = 0;
 
-        vec3 vertex_offset = {(double)x, (double)y, (double)z};
         for (int face_index = 0; face_index < v_count; face_index += face_vertex_count)
         {
             normal_index = face_index / face_vertex_count;
@@ -77,12 +106,11 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
                     if (c->blocks[block_index + chunk_slab].id != BLOCK_NULL)
                         skip_face = true;
                 }
-                else
+                else if (forwards != NULL)
                 {
-                    // printf("block = %i\n", block_index);
-                    // block_id other_chunk_block_id = forwards->blocks[block_index].id;
-                    block_id other_chunk_block_id = BLOCK_NULL;
-                    printf("-id = %i\n", other_chunk_block_id);
+                    int other_chunk_block_index = block_index - chunk_total + chunk_slab;
+                    block_id other_chunk_block_id = forwards->blocks[other_chunk_block_index].id;
+
                     if (other_chunk_block_id != BLOCK_NULL)
                         skip_face = true;
                 }
@@ -93,40 +121,72 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
                     if (c->blocks[block_index - chunk_slab].id != BLOCK_NULL)
                         skip_face = true;
                 }
-                else
+                else if (backwards != NULL)
                 {
-                    // block_id other_chunk_block_id = backwards->blocks[block_index + chunk_total].id;
-                    block_id other_chunk_block_id = BLOCK_NULL;
-                    // printf("id = %i\n", other_chunk_block_id);
+                    int other_chunk_block_index = block_index + chunk_total - chunk_slab;
+                    block_id other_chunk_block_id = backwards->blocks[other_chunk_block_index].id;
+
                     if (other_chunk_block_id != BLOCK_NULL)
                         skip_face = true;
                 }
                 break;
             case 2:
-                if (x < CHUNK_EDGE_LENGTH - 1)
-                {
-                    if (c->blocks[block_index + 1].id != BLOCK_NULL)
-                        skip_face = true;
-                }
-                break;
-            case 3:
-                if (x > 0)
-                {
-                    if (c->blocks[block_index - 1].id != BLOCK_NULL)
-                        skip_face = true;
-                }
-                break;
-            case 4:
                 if (y < CHUNK_EDGE_LENGTH - 1)
                 {
                     if (c->blocks[block_index + chunk_row].id != BLOCK_NULL)
                         skip_face = true;
                 }
+                else if (up != NULL)
+                {
+                    int other_chunk_block_index = block_index - chunk_slab + chunk_row;
+                    block_id other_chunk_block_id = up->blocks[other_chunk_block_index].id;
+
+                    if (other_chunk_block_id != BLOCK_NULL)
+                        skip_face = true;
+                }
                 break;
-            case 5:
+            case 3:
                 if (y > 0)
                 {
                     if (c->blocks[block_index - chunk_row].id != BLOCK_NULL)
+                        skip_face = true;
+                }
+                else if (down != NULL)
+                {
+                    int other_chunk_block_index = block_index + chunk_slab - chunk_row;
+                    block_id other_chunk_block_id = down->blocks[other_chunk_block_index].id;
+
+                    if (other_chunk_block_id != BLOCK_NULL)
+                        skip_face = true;
+                }
+                break;
+            case 4:
+                if (x < CHUNK_EDGE_LENGTH - 1)
+                {
+                    if (c->blocks[block_index + 1].id != BLOCK_NULL)
+                        skip_face = true;
+                }
+                else if (right != NULL)
+                {
+                    int other_chunk_block_index = block_index - chunk_row + 1;
+                    block_id other_chunk_block_id = right->blocks[other_chunk_block_index].id;
+
+                    if (other_chunk_block_id != BLOCK_NULL)
+                        skip_face = true;
+                }
+                break;
+            case 5:
+                if (x > 0)
+                {
+                    if (c->blocks[block_index - 1].id != BLOCK_NULL)
+                        skip_face = true;
+                }
+                else if (left != NULL)
+                {
+                    int other_chunk_block_index = block_index + chunk_row - 1;
+                    block_id other_chunk_block_id = left->blocks[other_chunk_block_index].id;
+
+                    if (other_chunk_block_id != BLOCK_NULL)
                         skip_face = true;
                 }
                 break;
@@ -138,6 +198,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
             if (skip_face)
                 continue;
 
+            vec3 vertex_offset = {(double)x, (double)y, (double)z};
             for (int vertex_index = 0; vertex_index < face_vertex_count; vertex_index += vertex_data_size)
             {
                 // position
@@ -145,7 +206,6 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
                 offset_cube[block_mesh_size + vertex_index + 1] = block_vertices[face_index + vertex_index + 1] + vertex_offset[1];
                 offset_cube[block_mesh_size + vertex_index + 2] = block_vertices[face_index + vertex_index + 2] + vertex_offset[2];
                 // texture
-
                 int t_x = c->blocks[block_index].id % c->texture_width;
                 int t_y = c->blocks[block_index].id / c->texture_width;
                 t_x += 1;
@@ -175,12 +235,13 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
     glVertexAttribPointer(1, 2, GL_INT, GL_FALSE, 5 * sizeof(GL_INT), (void *)(3 * sizeof(GL_INT)));
     glEnableVertexAttribArray(1);
 }
-void update_chunk(chunk *c, camera *cam, int *lookat_block, int *lookat_block_normal, double *lookat_block_distance, int *lookat_chunk_normal)
+void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwards_chunk,
+                  chunk *backwards_chunk, chunk *up_chunk, chunk *down_chunk, camera *cam,
+                  int *lookat_block, int *lookat_block_normal, double *lookat_block_distance, int *lookat_chunk_normal)
 {
     if (c->dirty)
     {
-        // reimplement
-        // build_chunk_mesh(c, );
+        build_chunk_mesh(c, left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk);
         c->dirty = false;
     }
     double closest_block_dist = DBL_MAX;
@@ -219,20 +280,7 @@ void update_chunk(chunk *c, camera *cam, int *lookat_block, int *lookat_block_no
                 *lookat_block = i;
                 *lookat_block_normal = closest_block_normal;
                 *lookat_block_distance = closest_block_dist;
-                // printf("looking at block %f %f %f, block normal = %i\n", block_pos[0], block_pos[1], block_pos[2], *lookat_block_normal);
                 *lookat_chunk_normal = -1;
-                // if (*lookat_block_normal == 1 && block_pos[0] >= CHUNK_EDGE_LENGTH - 1)
-                //     *lookat_chunk_normal = 1;
-                // if (*lookat_block_normal == 0 && block_pos[0] <= 0)
-                //     *lookat_chunk_normal = 0;
-                // if (block_pos[1] >= CHUNK_EDGE_LENGTH - 1)
-                //     *lookat_chunk_normal = 2;
-                // if (block_pos[1] <= 0)
-                //     *lookat_chunk_normal = 3;
-                // if (*lookat_block_normal == 5 && block_pos[2] >= CHUNK_EDGE_LENGTH - 1)
-                //     *lookat_chunk_normal = 5;
-                // if (*lookat_block_normal == 4 && block_pos[2] <= 0)
-                //     *lookat_chunk_normal = 4;
 
                 if (*lookat_block_normal == 1 && block_pos[0] >= CHUNK_EDGE_LENGTH - 1)
                     *lookat_chunk_normal = 1;
@@ -262,64 +310,4 @@ void draw_chunk(chunk *c, shader_list *shaders, int lookat_block)
 
     glBindVertexArray(c->vao);
     glDrawArrays(GL_TRIANGLES, 0, c->mesh_size);
-}
-void break_chunk_block(chunk *c, int lookat_block)
-{
-    if (lookat_block < 0)
-        return;
-    c->blocks[lookat_block].id = BLOCK_NULL;
-    c->dirty = true;
-}
-
-void place_chunk_block(chunk *c, int origin_block, int origin_normal)
-{
-    int chunk_size = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    int slab_size = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    int row_size = CHUNK_EDGE_LENGTH;
-
-    int new_block_pos = -1;
-    int x = origin_block % CHUNK_EDGE_LENGTH;
-    int y = (origin_block / CHUNK_EDGE_LENGTH) % CHUNK_EDGE_LENGTH;
-    int z = origin_block / (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH);
-    switch (origin_normal)
-    {
-    case 5:
-        // pos z, get block that's a slab past this block
-        new_block_pos = origin_block + slab_size;
-        ++z;
-        break;
-    case 4:
-        // neg z
-        new_block_pos = origin_block - slab_size;
-        --z;
-        break;
-    case 3:
-        // pos y
-        new_block_pos = origin_block + row_size;
-        ++y;
-        break;
-    case 2:
-        // neg y
-        new_block_pos = origin_block - row_size;
-        --y;
-        break;
-    case 1:
-        // pos x
-        new_block_pos = origin_block + 1;
-        ++x;
-        break;
-    case 0:
-        // neg x
-        new_block_pos = origin_block - 1;
-        --x;
-        break;
-    default:
-        break;
-    }
-
-    if (new_block_pos > -1 && new_block_pos < chunk_size)
-    {
-        c->blocks[new_block_pos].id = BLOCK_ROCK;
-        c->dirty = true;
-    }
 }
