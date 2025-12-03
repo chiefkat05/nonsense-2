@@ -61,6 +61,7 @@ void chunk_free(chunk *c)
 
 void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chunk *backwards, chunk *up, chunk *down)
 {
+    printf("made it %p\n", c);
     verify(c->mesh, "cannot build chunk mesh, mesh pointer is NULL. Maybe it's not been allocated?", __LINE__);
     memset(c->mesh, 0, block_limit * sizeof(block_vertices));
 
@@ -74,9 +75,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         {
             continue;
         }
-        // int z = block_index % CHUNK_EDGE_LENGTH;
-        // int y = (block_index / CHUNK_EDGE_LENGTH) % CHUNK_EDGE_LENGTH;
-        // int x = (block_index / (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH));
+        
         vec3 block_pos = {};
         chunk_get_position_from_block(c, block_index, block_pos, __LINE__);
         int x = block_pos[0];
@@ -218,6 +217,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         memcpy((c->mesh + mesh_size), offset_cube, sizeof(int) * block_mesh_size);
         mesh_size += block_mesh_size;
     }
+    printf("sigh\n");
     c->mesh_size = mesh_size;
 
     // pass to opengl
