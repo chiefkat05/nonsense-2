@@ -50,18 +50,19 @@ void chunk_generation(chunk *c, int _x, int _y, int _z)
 
 void chunk_allocate(chunk *c)
 {
-    c->mesh = (int *)malloc(CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * sizeof(block_vertices));
+    c->mesh = (int *)calloc(CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH, sizeof(block_vertices));
     verify(c->mesh, "couldn't allocate a chunk of memory", __LINE__);
 }
 void chunk_free(chunk *c)
 {
+    if (!c)
+        return;
+
     free(c->mesh);
-    verify(!c->mesh, "failed to free chunk mesh data", __LINE__);
 }
 
 void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chunk *backwards, chunk *up, chunk *down)
 {
-    printf("made it %p\n", c);
     verify(c->mesh, "cannot build chunk mesh, mesh pointer is NULL. Maybe it's not been allocated?", __LINE__);
     memset(c->mesh, 0, block_limit * sizeof(block_vertices));
 
@@ -82,7 +83,6 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         int y = block_pos[1];
         int z = block_pos[2];
 
-        // printf("block %i pos %i %i %i\n", block_index, x, y, z);
         int v_count = sizeof(block_vertices) / sizeof(block_vertices[0]);
         int cube_tri_count = 36;
         int vertex_data_size = v_count / cube_tri_count;
@@ -217,7 +217,6 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         memcpy((c->mesh + mesh_size), offset_cube, sizeof(int) * block_mesh_size);
         mesh_size += block_mesh_size;
     }
-    printf("sigh\n");
     c->mesh_size = mesh_size;
 
     // pass to opengl
@@ -248,7 +247,8 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
     int closest_block_normal = -1;
     for (int i = 0; i < block_limit; ++i)
     {
-        if (c->blocks[i].id == BLOCK_NULL)
+        block_id chunk_block_id = c->blocks[i].id;
+        if (chunk_block_id == BLOCK_NULL)
         {
             continue;
         }
@@ -267,19 +267,21 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
             -cam->direction[0],
             -cam->direction[1],
             -cam->direction[2]};
-        if (!ray_voxel_colliding(cam->pos, cam_com_dir, block_min, block_max, &closest_block_normal))
-        {
+
+        bool looking_at = ray_voxel_colliding(cam->pos, cam_com_dir, block_min, block_max, &closest_block_normal);
+        if (!looking_at)
             continue;
-        }
+        
         float dist = glm_vec3_distance2(cam->pos, real_block_position);
         if (dist < closest_block_dist)
         {
             closest_block_dist = dist;
-            if (closest_block_dist < *lookat_block_distance)
+            double *look_block_dist = lookat_block_distance;
+            if (closest_block_dist < *look_block_dist)
             {
                 *lookat_block = i;
                 *lookat_block_normal = closest_block_normal;
-                *lookat_block_distance = closest_block_dist;
+                *look_block_dist = closest_block_dist;
                 *lookat_chunk_normal = -1;
 
                 if (*lookat_block_normal == 1 && block_pos[0] >= CHUNK_EDGE_LENGTH - 1)

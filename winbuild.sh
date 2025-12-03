@@ -1,12 +1,12 @@
 clear
 
 echo "$(tput setaf 3)
-	building application
+	building application for windows
 
 [----------------------------------------------------------------]
 "
 echo "$(tput setaf 1)killing existing processes:"
-pkill -f -e -c game
+pkill -f -e -c game.exe
 
 echo "
 "
@@ -19,7 +19,7 @@ $(tput setaf 4)
 
 compiling and linking:
 "
-gcc ./*.c -o game -O3 -Wall `pkg-config --cflags --libs glfw3 glew` -lm
+x86_64-w64-mingw32-gcc ./*.c -o ./windows/game.exe -O3 -Wall -lglfw3 -lopengl32 -lgdi32 -lglew32
 echo "
 [----------------------------------------------------------------]
 $(tput setaf 2)
@@ -30,4 +30,4 @@ echo "
 [----------------------------------------------------------------]
 $(tput setaf 7)"
 
-./game
+wine ./windows/game.exe

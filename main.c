@@ -18,9 +18,8 @@ typedef struct
 } chunk_hashmap;
 void chunk_map_alloc(chunk_hashmap *map, uint32 size)
 {
-    map->arr = (chunk **)malloc(size * sizeof(chunk *));
+    map->arr = (chunk **)calloc(size, sizeof(chunk *));
     verify(map->arr, "failed to allocate chunk hashmap", __LINE__);
-    memset(map->arr, 0, size * sizeof(chunk *));
     map->count = size;
 }
 void chunk_map_free(chunk_hashmap *map)
@@ -32,6 +31,9 @@ const unsigned int chunk_render_area_edge = 10;
 const double render_distance = 2500.0;
 int chunk_map_function(int x, int y, int z)
 {
+    // ! idea: make this 'not' perfectly unique, by subtracting the player position or something, keeping the hash function always
+    // centered around where the player is. That will make the hash map stay as small as the render_area (render distance) at all times
+    // but don't bother rushing to implement this, just get it done before 1.0 release
     int out_x = abs(x) * 2;
     int out_y = abs(y) * 2;
     int out_z = abs(z) * 2;
@@ -45,10 +47,10 @@ int chunk_map_function(int x, int y, int z)
 }
 void chunk_map_rehash(chunk_hashmap *map)
 {
-    int new_size = map->count * sizeof(chunk *) * 2;
-    chunk **new_map_arr = (chunk **)malloc(new_size);
+    int new_size = map->count * 2;
+    chunk **new_map_arr = (chunk **)calloc(new_size, sizeof(chunk *));
     verify(new_map_arr, "failed to allocate memory for chunk map rehash", new_size);
-    memset(new_map_arr, 0, new_size);
+    // memset(new_map_arr, 0, new_size);
     memcpy(new_map_arr, map->arr, map->count * sizeof(chunk *));
     free(map->arr);
     map->arr = new_map_arr;
@@ -58,7 +60,6 @@ void chunk_map_insert(chunk_hashmap *map, int x, int y, int z, chunk *p_chunk)
 {
     unsigned int index = chunk_map_function(x, y, z);
 
-    printf("inserting %i pos %i %i %i\n", index, x, y, z);
     while (index >= map->count)
     {
         chunk_map_rehash(map);
@@ -89,10 +90,10 @@ void chunk_map_print(chunk_hashmap *map)
         if (map->arr[i] == NULL)
             continue;
 
-        printf("%i / %i chunk at pointer %p\n", i, map->count, map->arr[i]);
+        printf("%i / %i chunk at pointer %p\n", i, map->count, (void *)map->arr[i]);
         printf("pos: %i %i %i\n", map->arr[i]->x, map->arr[i]->y, map->arr[i]->z);
     }
-    printf("---end hashmap data. hashmap total size: %i bytes---\n", map->count * sizeof(chunk *));
+    printf("---end hashmap data. hashmap total size: %d bytes---\n", map->count * sizeof(chunk *));
 }
 // this only runs once per tick... still too much?
 // (btw implement ticks)
@@ -238,8 +239,6 @@ void world_place_block(world *w)
 
     if (new_block_pos > -1 && new_block_pos < chunk_size && w->placement_chunk)
     {
-        // w->chunk_list[w->placement_chunk].blocks[new_block_pos].id = BLOCK_ROCK;
-        // w->chunk_list[w->placement_chunk].dirty = true;
         w->placement_chunk->blocks[new_block_pos].id = BLOCK_ROCK;
         w->placement_chunk->dirty = true;
     }
@@ -250,8 +249,8 @@ void world_chunk_generation(world *w, camera *cam)
     w->world_y_count = 4;
     w->world_z_count = 10;
     int total_world_size = w->world_x_count * w->world_y_count * w->world_z_count;
-    w->chunk_list = (chunk *)malloc(sizeof(chunk) * total_world_size);
-    verify(w->chunk_list, "failed to allocate world chunk area", __LINE__);
+    w->chunk_list = (chunk *)calloc(total_world_size, sizeof(chunk));
+    verify(w->chunk_list, "failed to allocate world chunk area", __LINE__); // windows build -> x11 fps test (let's go)
 
     chunk_map_alloc(&w->chunk_map, total_world_size * 2);
 
@@ -270,21 +269,14 @@ void world_chunk_generation(world *w, camera *cam)
                 current_chunk->texture_id = w->texture_id;
                 current_chunk->texture_width = w->texture_width;
                 current_chunk->texture_height = w->texture_height;
-
-                vec3 chunk_pos = {x * CHUNK_EDGE_LENGTH, y * CHUNK_EDGE_LENGTH, z * CHUNK_EDGE_LENGTH};
-                double cam_to_chunk_dist = glm_vec3_distance2(chunk_pos, cam->pos);
-
-                if (cam_to_chunk_dist <= render_distance)
-                {
-                    chunk_map_insert(&w->chunk_map, x, y, z, current_chunk);
-                }
+                
+                chunk_map_insert(&w->chunk_map, x, y, z, current_chunk);
 
                 ++w->chunk_count;
             }
         }
     }
 
-    chunk_map_print(&w->chunk_map);    // mesh build step (must come after because you need the completed chunks for cross-mesh optimization)
     for (int i = 0; i < w->chunk_count; ++i)
     {
         int x = w->chunk_list[i].x, y = w->chunk_list[i].y, z = w->chunk_list[i].z;
@@ -302,8 +294,7 @@ void world_chunk_generation(world *w, camera *cam)
         
         build_chunk_mesh(this_chunk, left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk);
     }
-
-    // chunk_map_cleanup(&w->chunk_map, cam->pos);
+    chunk_map_cleanup(&w->chunk_map, cam->pos);
 }
 void world_chunk_update(world *w, camera *cam, shader_list *shaders)
 {
@@ -336,12 +327,6 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders)
         chunk *backwards_chunk = chunk_map_lookup(&w->chunk_map, x, y, z - 1);
         chunk *up_chunk = chunk_map_lookup(&w->chunk_map, x, y + 1, z);
         chunk *down_chunk = chunk_map_lookup(&w->chunk_map, x, y - 1, z);
-        vec3 right_pos = {(x + 1) * CHUNK_EDGE_LENGTH, y * CHUNK_EDGE_LENGTH, z * CHUNK_EDGE_LENGTH};
-        vec3 left_pos = {(x - 1) * CHUNK_EDGE_LENGTH, y * CHUNK_EDGE_LENGTH, z * CHUNK_EDGE_LENGTH};
-        vec3 forwards_pos = {x * CHUNK_EDGE_LENGTH, (y + 1) * CHUNK_EDGE_LENGTH, z * CHUNK_EDGE_LENGTH};
-        vec3 backwards_pos = {x * CHUNK_EDGE_LENGTH, (y - 1) * CHUNK_EDGE_LENGTH, z * CHUNK_EDGE_LENGTH};
-        vec3 up_pos = {x * CHUNK_EDGE_LENGTH, y * CHUNK_EDGE_LENGTH, (z + 1) * CHUNK_EDGE_LENGTH};
-        vec3 down_pos = {x * CHUNK_EDGE_LENGTH, y * CHUNK_EDGE_LENGTH, (z - 1) * CHUNK_EDGE_LENGTH};
 
         update_chunk(&w->chunk_list[i], left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk,
                         cam, &temp_lookat, &w->lookat_block_normal, &lookat_block_distance, &temp_lookat_chunk_norm);
@@ -386,12 +371,17 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders)
     }
 
     chunk_map_cleanup(&w->chunk_map, cam->pos);
-    chunk_map_print(&w->chunk_map);
 }
 void world_exit(world *w)
 {
-    chunk_map_free(&w->chunk_map);
+    for (int i = 0; i < w->chunk_count; ++i)
+    {
+        chunk_free(&w->chunk_list[i]);
+    }
     free(w->chunk_list);
+    chunk_map_free(&w->chunk_map);
+
+    free(w);
 }
 
 int main()
@@ -423,18 +413,15 @@ int main()
 
     create_shader(&shaders, SHADER_COMMON, "./vertex.shader", "./fragment.shader");
 
-    world test_world = {};
-    test_world.texture_id = texture_load_from_bmp(1, "./atlas.bmp", &test_world.texture_width, &test_world.texture_height);
-    test_world.texture_width /= 16.0;
-    test_world.texture_height /= 16.0;
-    world_chunk_generation(&test_world, &cam);
+    world *test_world = calloc(1, sizeof(world));
+    test_world->texture_id = texture_load_from_bmp(1, "./atlas.bmp", &test_world->texture_width, &test_world->texture_height);
+    test_world->texture_width /= 16.0;
+    test_world->texture_height /= 16.0;
+    world_chunk_generation(test_world, &cam);
 
     double mouseX = 0, mouseY = 0;
     double lastMouseX = mouseY, lastMouseY = mouseY;
     bool left_held = false, right_held = false;
-
-    const int chunk_slab = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    const int chunk_row = CHUNK_EDGE_LENGTH;
 
     double delta_time = 0.0;
     double last_time = 0.0;
@@ -461,11 +448,11 @@ int main()
         shader_set_mat4x4(&shaders, SHADER_COMMON, "view", cam.view);
         shader_set_mat4x4(&shaders, SHADER_COMMON, "proj", proj);
 
-        world_chunk_update(&test_world, &cam, &shaders);
+        world_chunk_update(test_world, &cam, &shaders);
 
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !left_held)
         {
-            world_break_block(&test_world);
+            world_break_block(test_world);
             left_held = true;
         }
         if (!glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1))
@@ -474,18 +461,22 @@ int main()
         }
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2) && !right_held)
         {
-            world_place_block(&test_world);
+            world_place_block(test_world);
             right_held = true;
         }
         if (!glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2))
         {
             right_held = false;
         }
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        {
+            glfwSetWindowShouldClose(window, true);
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    world_exit(&test_world);
+    world_exit(test_world);
     glfwTerminate();
 }
 
