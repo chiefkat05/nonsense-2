@@ -63,6 +63,7 @@ void chunk_free(chunk *c)
 
 void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chunk *backwards, chunk *up, chunk *down)
 {
+    verify(c, "cannot build chunk mesh, chunk does not exist.", __LINE__);
     verify(c->mesh, "cannot build chunk mesh, mesh pointer is NULL. Maybe it's not been allocated?", __LINE__);
     memset(c->mesh, 0, block_limit * sizeof(block_vertices));
 
@@ -81,7 +82,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         chunk_get_position_from_block(c, block_index, block_pos, __LINE__);
         int x = block_pos[0];
         int y = block_pos[1];
-        int z = block_pos[2];
+        int z = block_pos[2];        
 
         int v_count = sizeof(block_vertices) / sizeof(block_vertices[0]);
         int cube_tri_count = 36;
@@ -213,7 +214,6 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
             }
             block_mesh_size += face_vertex_count;
         }
-
         memcpy((c->mesh + mesh_size), offset_cube, sizeof(int) * block_mesh_size);
         mesh_size += block_mesh_size;
     }

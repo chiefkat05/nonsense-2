@@ -19,6 +19,7 @@
         "chiefkat_bmp.h": "c",
         "shader.h": "c",
         "chunk.h": "c",
-        "physics.h": "c"
+        "physics.h": "c",
+        "chunk_map.h": "c"
     }
 }

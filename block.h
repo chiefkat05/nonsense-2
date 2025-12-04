@@ -66,10 +66,7 @@ typedef enum
 } block_id;
 typedef struct
 {
-    // each side has it's own texture id???? makes sense... but excessive??
-    // block_id id[6];
     block_id id;
-    // other data things can be maybe break time and stuff, or you can put everything important in the id? and make structs or enums to handle stats based on that?
 } voxel;
 
 #endif
