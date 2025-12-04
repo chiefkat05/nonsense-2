@@ -120,10 +120,7 @@ int main()
         glm_quat_slerp(game_world.cam.last_yaw_rotation, game_world.cam.yaw_rotation, alpha, game_world.cam.real_yaw_rotation);
 
         versor temp_cam_rot = {};
-        // glm_quat_mul(game_world.cam.real_pitch_rotation, game_world.cam.real_yaw_rotation, temp_cam_rot);
-        // glm_quat_rotatev(game_world.cam.real_yaw_rotation, (vec3){0.0, 0.0, 1.0}, game_world.cam.walk_direction);
-        glm_quat_mul(game_world.cam.yaw_rotation, game_world.cam.pitch_rotation, temp_cam_rot);
-        // glm_quat_copy(game_world.cam.real_pitch_rotation, temp_cam_rot);
+        glm_quat_mul(game_world.cam.real_yaw_rotation, game_world.cam.real_pitch_rotation, temp_cam_rot);
 
         glm_quat_rotatev(game_world.cam.real_yaw_rotation, (vec3){0.0, 0.0, 1.0}, game_world.cam.walk_direction);
         glm_quat_rotatev(temp_cam_rot, (vec3){0.0, 0.0, 1.0}, game_world.cam.look_direction);
