@@ -9,7 +9,8 @@ static int global_window_width;
 static int global_window_height;
 
 unsigned int world_local_edge_size = 10;
-double render_distance = 2500.0;
+double render_distance = 1000.0;
+float *camera_position;
 
 void framebuffer_size(GLFWwindow *window, int width, int height);
 void process_input(GLFWwindow *window, camera *cam, double delta_time);
@@ -50,11 +51,11 @@ int main()
 
     create_shader(&shaders, SHADER_COMMON, "./vertex.shader", "./fragment.shader");
 
-    world *test_world = calloc(1, sizeof(world));
-    test_world->texture_id = texture_load_from_bmp(1, "./atlas.bmp", &test_world->texture_width, &test_world->texture_height);
-    test_world->texture_width /= 16.0;
-    test_world->texture_height /= 16.0;
-    world_chunk_generation(test_world, &cam);
+    world my_world;
+    chunk_map_alloc(&my_world.chunk_map, world_local_edge_size * world_local_edge_size * world_local_edge_size);
+    my_world.texture_id = texture_load_from_bmp(1, "./atlas.bmp", &my_world.texture_width, &my_world.texture_height);
+    my_world.texture_width /= 16.0;
+    my_world.texture_height /= 16.0;
 
     double mouseX = 0, mouseY = 0;
     double lastMouseX = mouseY, lastMouseY = mouseY;
@@ -82,14 +83,16 @@ int main()
 
         process_input(window, &cam, delta_time);
         camera_update(&cam, mouseX - lastMouseX, mouseY - lastMouseY, delta_time);
+        camera_position = cam.pos;
         shader_set_mat4x4(&shaders, SHADER_COMMON, "view", cam.view);
         shader_set_mat4x4(&shaders, SHADER_COMMON, "proj", proj);
 
-        world_chunk_update(test_world, &cam, &shaders);
+        double cam_block_distance = FLT_MAX;
+        world_chunk_update(&my_world, &cam, &shaders, &cam_block_distance);
 
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !left_held)
         {
-            world_break_block(test_world);
+            world_break_block(&my_world);
             left_held = true;
         }
         if (!glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1))
@@ -98,7 +101,7 @@ int main()
         }
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2) && !right_held)
         {
-            world_place_block(test_world);
+            world_place_block(&my_world);
             right_held = true;
         }
         if (!glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2))
@@ -113,7 +116,7 @@ int main()
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    world_exit(test_world);
+    world_exit(&my_world);
     glfwTerminate();
 }
 

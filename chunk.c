@@ -46,6 +46,7 @@ void chunk_generation(chunk *c, int _x, int _y, int _z)
             }
         }
     }
+    c->generated = true;
 }
 
 void chunk_allocate(chunk *c)
@@ -300,7 +301,7 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
         }
     }
 }
-void draw_chunk(chunk *c, shader_list *shaders, int lookat_block)
+void draw_chunk(chunk *c, shader_list *shaders)
 {
     mat4 model;
     glm_mat4_identity(model);

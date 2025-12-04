@@ -8,21 +8,17 @@ extern double render_distance;
 
 typedef struct
 {
-    chunk *chunk_list;
-    int chunk_count;
-    int world_x_count, world_y_count, world_z_count;
     unsigned int texture_id, texture_width, texture_height;
     int lookat_block, placement_block;
     int lookat_block_normal;
-    int lookat_chunk;
-    chunk *placement_chunk;
+    chunk *lookat_chunk, *placement_chunk;
+    int lookat_chunk_normal;
     chunk_hashmap chunk_map;
 } world;
 
 void world_break_block(world *w);
 void world_place_block(world *w);
-void world_chunk_generation(world *w, camera *cam);
-void world_chunk_update(world *w, camera *cam, shader_list *shaders);
+void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *lookat_block_distance);
 void world_exit(world *w);
 
 

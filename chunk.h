@@ -6,6 +6,8 @@
 #include "physics.h"
 #include "shader.h"
 
+extern float *camera_position;
+
 #define CHUNK_EDGE_LENGTH 8
 static const int block_limit = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
 typedef struct
@@ -17,6 +19,7 @@ typedef struct
     bool dirty;
     unsigned int vao, vbo;
     unsigned int texture_id, texture_width, texture_height;
+    bool generated;
 } chunk;
 
 void chunk_generation(chunk *c, int _x, int _y, int _z);
@@ -28,7 +31,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
 void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwards_chunk,
                   chunk *backwards_chunk, chunk *up_chunk, chunk *down_chunk, camera *cam,
                   int *lookat_block, int *lookat_block_normal, double *lookat_block_distance, int *lookat_chunk_normal);
-void draw_chunk(chunk *c, shader_list *shaders, int lookat_block);
+void draw_chunk(chunk *c, shader_list *shaders);
 
 int chunk_get_block_from_position(chunk *c, int x, int y, int z);
 void chunk_get_position_from_block(chunk *c, int i, vec3 output, int line);

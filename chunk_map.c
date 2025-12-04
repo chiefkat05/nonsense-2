@@ -50,7 +50,7 @@ void chunk_map_insert(chunk_hashmap *map, int x, int y, int z, chunk *p_chunk)
 void chunk_map_remove(chunk_hashmap *map, int x, int y, int z)
 {
     unsigned int index = chunk_map_function(x, y, z);
-    if (index >= map->count)
+    if (index >= map->count || !map->arr[index])
         return;
 
     map->arr[index] = NULL;
@@ -59,7 +59,9 @@ chunk *chunk_map_lookup(chunk_hashmap *map, int x, int y, int z)
 {
     unsigned int index = chunk_map_function(x, y, z);
     if (index >= map->count || !map->arr[index])
+    {
         return NULL;
+    }
         
     return map->arr[index];
 }
