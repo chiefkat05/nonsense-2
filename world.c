@@ -151,8 +151,18 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *loo
                 
                 if (new_chunk)
                 {
+                    if (right)
+                        right->dirty = true;
                     if (left)
                         left->dirty = true;
+                    if (forwards)
+                        forwards->dirty = true;
+                    if (backwards)
+                        backwards->dirty = true;
+                    if (up)
+                        up->dirty = true;
+                    if (down)
+                        down->dirty = true;
                 }
                 
                 int temp_lookat = -1;
