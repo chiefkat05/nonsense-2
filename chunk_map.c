@@ -8,6 +8,14 @@ void chunk_map_alloc(chunk_hashmap *map, uint32 size)
 }
 void chunk_map_free(chunk_hashmap *map)
 {
+    for (int i = 0; i < map->count; ++i)
+    {
+        if (map->arr[i])
+        {
+            free(map->arr[i]->mesh);
+            free(map->arr[i]);
+        }
+    }
     free(map->arr);
     map->count = 0;
 }

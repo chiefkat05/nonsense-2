@@ -148,12 +148,12 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *loo
                 chunk *backwards = chunk_map_lookup(&w->chunk_map, x, y, z - 1);
                 chunk *up = chunk_map_lookup(&w->chunk_map, x, y + 1, z);
                 chunk *down = chunk_map_lookup(&w->chunk_map, x, y - 1, z);
-                /*
+                
                 if (new_chunk)
                 {
                     if (left)
                         left->dirty = true;
-                } */
+                }
                 
                 int temp_lookat = -1;
                 update_chunk(current, left, right, forwards, backwards, up, down,
@@ -201,13 +201,9 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *loo
             }
         }
     }
-
-    // make this work? there seems to be a floating point error causing chunks to get de-loaded when they're just on the edge of vision, then re-loaded in an infinite memory-sapping loop
-    // chunk_map_cleanup(&w->chunk_map, cam->pos, render_distance);
 }
 void world_exit(world *w)
 {
-    // save world to file here. Remember that the world does not need to be rendered to be loaded... the generated blocks are all
-    // you need to send to a save file
+    // save world to file here.
     chunk_map_free(&w->chunk_map);
 }
