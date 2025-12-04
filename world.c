@@ -115,7 +115,7 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *loo
     int y_max = (int)(cam->pos[1] / CHUNK_EDGE_LENGTH) + 5;
     for (int z = z_min; z < z_max; ++z)
     {
-        for (int y = y_min; y < y_max; ++y)
+        for (int y = -1; y < 0; ++y)
         {
             for (int x = x_min; x < x_max; ++x)
             {
@@ -127,6 +127,7 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *loo
                 }
 
                 chunk *current = chunk_map_lookup(&w->chunk_map, x, y, z);
+                bool new_chunk = false;
                 if (!current)
                 {
                     current = (chunk *)calloc(1, sizeof(chunk));
@@ -138,6 +139,7 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *loo
 
                     chunk_map_insert(&w->chunk_map, x, y, z, current);
                     current->dirty = true;
+                    new_chunk = true;
                 }
 
                 chunk *right = chunk_map_lookup(&w->chunk_map, x + 1, y, z);
@@ -146,6 +148,12 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *loo
                 chunk *backwards = chunk_map_lookup(&w->chunk_map, x, y, z - 1);
                 chunk *up = chunk_map_lookup(&w->chunk_map, x, y + 1, z);
                 chunk *down = chunk_map_lookup(&w->chunk_map, x, y - 1, z);
+                /*
+                if (new_chunk)
+                {
+                    if (left)
+                        left->dirty = true;
+                } */
                 
                 int temp_lookat = -1;
                 update_chunk(current, left, right, forwards, backwards, up, down,
