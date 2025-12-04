@@ -18,15 +18,15 @@ void world_break_block(world *w)
 
     if (x == 0)
         chunk_update_normal_x = -1;
-    if (x + 1 >= CHUNK_EDGE_LENGTH)
+    if (x + 1 >= CHUNK_EDGE)
         chunk_update_normal_x = 1;
     if (y == 0)
         chunk_update_normal_y = -1;
-    if (y + 1 >= CHUNK_EDGE_LENGTH)
+    if (y + 1 >= CHUNK_EDGE)
         chunk_update_normal_y = 1;
     if (z == 0)
         chunk_update_normal_z = -1;
-    if (z + 1 >= CHUNK_EDGE_LENGTH)
+    if (z + 1 >= CHUNK_EDGE)
         chunk_update_normal_z = 1;
 
     int chx = w->lookat_chunk->x;
@@ -54,14 +54,13 @@ void world_break_block(world *w)
 }
 void world_place_block(world *w)
 {
-    int chunk_size = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    int slab_size = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    int row_size = CHUNK_EDGE_LENGTH;
+    int slab_size = CHUNK_EDGE * CHUNK_EDGE;
+    int row_size = CHUNK_EDGE;
 
     int new_block_pos = -1;
-    int x = w->placement_block % CHUNK_EDGE_LENGTH;
-    int y = (w->placement_block / CHUNK_EDGE_LENGTH) % CHUNK_EDGE_LENGTH;
-    int z = w->placement_block / (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH);
+    int x = w->placement_block % CHUNK_EDGE;
+    int y = (w->placement_block / CHUNK_EDGE) % CHUNK_EDGE;
+    int z = w->placement_block / (CHUNK_EDGE * CHUNK_EDGE);
     switch (w->lookat_block_normal)
     {
     case 5:
@@ -98,29 +97,33 @@ void world_place_block(world *w)
         break;
     }
 
-    if (new_block_pos > -1 && new_block_pos < chunk_size && w->placement_chunk)
+    if (new_block_pos > -1 && new_block_pos < CHUNK_TOTAL && w->placement_chunk)
     {
         w->placement_chunk->blocks[new_block_pos].id = BLOCK_ROCK;
         w->placement_chunk->dirty = true;
     }
 }
-void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *lookat_block_distance)
+void world_chunk_update(world *w, double *lookat_block_distance)
 {
-    int z_min = (int)(cam->pos[2] / CHUNK_EDGE_LENGTH) - 5;
-    int z_max = (int)(cam->pos[2] / CHUNK_EDGE_LENGTH) + 5;
-    int x_min = (int)(cam->pos[0] / CHUNK_EDGE_LENGTH) - 5;
-    int x_max = (int)(cam->pos[0] / CHUNK_EDGE_LENGTH) + 5;
+    int neg_world_vision = -(world_local_edge_size / 2);
+    int pos_world_vision = (world_local_edge_size / 2);
+    int z_min = (int)(w->cam.position[2] / CHUNK_EDGE) + neg_world_vision;
+    int z_max = (int)(w->cam.position[2] / CHUNK_EDGE) + pos_world_vision;
+    int x_min = (int)(w->cam.position[0] / CHUNK_EDGE) + neg_world_vision;
+    int x_max = (int)(w->cam.position[0] / CHUNK_EDGE) + pos_world_vision;
     // maybe?
-    int y_min = (int)(cam->pos[1] / CHUNK_EDGE_LENGTH) - 5;
-    int y_max = (int)(cam->pos[1] / CHUNK_EDGE_LENGTH) + 5;
+    int y_min = (int)(w->cam.position[1] / CHUNK_EDGE) + neg_world_vision;
+    int y_max = (int)(w->cam.position[1] / CHUNK_EDGE) + pos_world_vision;
     for (int z = z_min; z < z_max; ++z)
     {
         for (int y = -1; y < 0; ++y)
         {
             for (int x = x_min; x < x_max; ++x)
             {
-                vec3 chunk_position = {x * CHUNK_EDGE_LENGTH, y * CHUNK_EDGE_LENGTH, z * CHUNK_EDGE_LENGTH};
-                double cam_dist = glm_vec3_distance2(chunk_position, cam->pos);
+                vec3 chunk_position = {((double)x + 0.5) * (double)CHUNK_EDGE,
+                                       ((double)y + 0.5) * (double)CHUNK_EDGE,
+                                       ((double)z + 0.5) * (double)CHUNK_EDGE};
+                double cam_dist = glm_vec3_distance2(chunk_position, w->cam.position);
                 if (cam_dist > render_distance)
                 {
                     continue;
@@ -167,9 +170,7 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *loo
                 
                 int temp_lookat = -1;
                 update_chunk(current, left, right, forwards, backwards, up, down,
-                                cam, &temp_lookat, &w->lookat_block_normal, lookat_block_distance, &w->lookat_chunk_normal);
-
-                draw_chunk(current, shaders);
+                                &w->cam, &temp_lookat, &w->lookat_block_normal, lookat_block_distance, &w->lookat_chunk_normal);
 
                 if (temp_lookat == -1)
                     continue;
@@ -183,31 +184,60 @@ void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *loo
                 {
                 case 0: // x
                     --new_chunk_position[0];
-                    w->placement_block += CHUNK_EDGE_LENGTH;
+                    w->placement_block += CHUNK_EDGE;
                     break;
                 case 1:
                     ++new_chunk_position[0];
-                    w->placement_block -= CHUNK_EDGE_LENGTH;
+                    w->placement_block -= CHUNK_EDGE;
                     break;
                 case 2: // y
                     --new_chunk_position[1];
-                    w->placement_block += CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
+                    w->placement_block += CHUNK_EDGE * CHUNK_EDGE;
                     break;
                 case 3:
                     ++new_chunk_position[1];
-                    w->placement_block -= CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
+                    w->placement_block -= CHUNK_EDGE * CHUNK_EDGE;
                     break;
                 case 4: // z
                     --new_chunk_position[2];
-                    w->placement_block += (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH);
+                    w->placement_block += CHUNK_TOTAL;
                     break;
                 case 5:
                     ++new_chunk_position[2];
-                    w->placement_block -= (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH);
+                    w->placement_block -= CHUNK_TOTAL;
                     break;
                 }
                 w->lookat_block = temp_lookat;
                 w->placement_chunk = chunk_map_lookup(&w->chunk_map, new_chunk_position[0], new_chunk_position[1], new_chunk_position[2]);
+            }
+        }
+    }
+}
+void world_draw(world *w)
+{
+    // make this a function or something
+    int neg_world_vision = -(world_local_edge_size / 2);
+    int pos_world_vision = (world_local_edge_size / 2);
+    int z_min = (int)(w->cam.real_position[2] / CHUNK_EDGE) + neg_world_vision;
+    int z_max = (int)(w->cam.real_position[2] / CHUNK_EDGE) + pos_world_vision;
+    int x_min = (int)(w->cam.real_position[0] / CHUNK_EDGE) + neg_world_vision;
+    int x_max = (int)(w->cam.real_position[0] / CHUNK_EDGE) + pos_world_vision;
+    // maybe?
+    int y_min = (int)(w->cam.real_position[1] / CHUNK_EDGE) + neg_world_vision;
+    int y_max = (int)(w->cam.real_position[1] / CHUNK_EDGE) + pos_world_vision;
+
+    for (int z = z_min; z < z_max; ++z)
+    {
+        for (int y = -1; y < 0; ++y)
+        {
+            for (int x = x_min; x < x_max; ++x)
+            {
+                chunk *current = chunk_map_lookup(&w->chunk_map, x, y, z);
+                if (!current)
+                    continue;
+
+
+                draw_chunk(current, &w->shaders);
             }
         }
     }

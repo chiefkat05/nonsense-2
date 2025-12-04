@@ -33,7 +33,11 @@ void shader_set_mat4x4(shader_list *list, shader_name name, const char *uniform_
 
 typedef struct
 {
-    vec3 pos, target, direction, xz_direction, up, right;
+    vec3 real_position;
+    versor real_pitch_rotation, real_yaw_rotation;
+
+    versor pitch_rotation, last_pitch_rotation, yaw_rotation, last_yaw_rotation;
+    vec3 position, last_position, look_direction, walk_direction, up, right;
     mat4 view;
     double yaw, pitch;
     bool mouse_focused;

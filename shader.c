@@ -127,26 +127,26 @@ void shader_set_mat4x4(shader_list *list, shader_name name, const char *uniform_
 void camera_setup(camera *cam, vec3 pos, vec3 target)
 {
     glm_vec3_copy((vec3){0.0, 1.0, 0.0}, cam->up);
-    glm_vec3_copy(pos, cam->pos);
-    glm_vec3_copy(target, cam->target);
-    glm_vec3_copy((vec3){0.0, 0.0, -1.0}, cam->direction);
+    glm_vec3_copy(pos, cam->position);
+    // glm_vec3_copy(target, cam->target);
+    // glm_vec3_copy((vec3){0.0, 0.0, -1.0}, cam->direction);
 
     cam->yaw = -90.0;
-    cam->direction[0] = cos(glm_rad(cam->yaw)) * cos(glm_rad(cam->pitch));
-    cam->direction[1] = sin(glm_rad(cam->pitch));
-    cam->direction[2] = sin(glm_rad(cam->yaw)) * cos(glm_rad(cam->pitch));
+    // cam->direction[0] = cos(glm_rad(cam->yaw)) * cos(glm_rad(cam->pitch));
+    // cam->direction[1] = sin(glm_rad(cam->pitch));
+    // cam->direction[2] = sin(glm_rad(cam->yaw)) * cos(glm_rad(cam->pitch));
 
-    glm_cross(cam->direction, cam->up, cam->right);
+    // glm_cross(cam->direction, cam->up, cam->right);
 
-    glm_lookat(cam->pos, cam->target, cam->up, cam->view);
+    // glm_lookat(cam->position, cam->target, cam->up, cam->view);
 }
-void camera_update(camera *cam, double yaw_update, double pitch_update, double delta_time)
+void camera_update(camera *cam, double yaw_update, double pitch_update, double tick_speed)
 {
     double mouse_sensitivity = 10.0;
     if (cam->mouse_focused)
     {
-        cam->yaw += yaw_update * delta_time * mouse_sensitivity;
-        cam->pitch += pitch_update * delta_time * mouse_sensitivity;
+        cam->yaw += yaw_update * tick_speed * mouse_sensitivity;
+        cam->pitch += pitch_update * tick_speed * mouse_sensitivity;
     }
     if (cam->pitch > 89.0)
     {
@@ -156,16 +156,9 @@ void camera_update(camera *cam, double yaw_update, double pitch_update, double d
     {
         cam->pitch = -89.0;
     }
-    glm_vec3_sub(cam->pos, cam->direction, cam->target);
-    cam->direction[0] = cos(glm_rad(cam->yaw)) * cos(glm_rad(cam->pitch));
-    cam->direction[1] = sin(glm_rad(cam->pitch));
-    cam->direction[2] = sin(glm_rad(cam->yaw)) * cos(glm_rad(cam->pitch));
-
-    cam->xz_direction[0] = cos(glm_rad(cam->yaw));
-    cam->xz_direction[2] = sin(glm_rad(cam->yaw));
-
-    glm_cross(cam->direction, cam->up, cam->right);
-    glm_lookat(cam->pos, cam->target, cam->up, cam->view);
+    
+    glm_quat(cam->yaw_rotation, glm_rad(cam->yaw), 0.0, 1.0, 0.0);
+    glm_quat(cam->pitch_rotation, glm_rad(cam->pitch), 1.0, 0.0, 0.0);
 }
 
 int texture_load_from_bmp(int index, const char *path, unsigned int *width, unsigned int *height)

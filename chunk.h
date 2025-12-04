@@ -8,14 +8,15 @@
 
 extern float *camera_position;
 
-#define CHUNK_EDGE_LENGTH 8
-static const int block_limit = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
+#define CHUNK_EDGE 16
+#define CHUNK_SLAB 256
+#define CHUNK_TOTAL 4096
 typedef struct
 {
     int x, y, z;
     int *mesh;
     int mesh_size;
-    voxel blocks[CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH];
+    voxel blocks[CHUNK_TOTAL];
     bool dirty;
     unsigned int vao, vbo;
     unsigned int texture_id, texture_width, texture_height;

@@ -14,12 +14,16 @@ typedef struct
     chunk *lookat_chunk, *placement_chunk;
     int lookat_chunk_normal;
     chunk_hashmap chunk_map;
+    chunk *draw_chunk_list[100];
+    camera cam;
+    shader_list shaders;
 } world;
 
 void world_break_block(world *w);
 void world_place_block(world *w);
-void world_chunk_update(world *w, camera *cam, shader_list *shaders, double *lookat_block_distance);
+void world_chunk_update(world *w, double *lookat_block_distance);
 void world_exit(world *w);
+void world_draw(world *w);
 
 
 #endif

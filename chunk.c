@@ -2,10 +2,10 @@
 
 int chunk_get_block_from_position(chunk *c, int x, int y, int z)
 {
-    int chunk_slab = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    int chunk_row = CHUNK_EDGE_LENGTH;
+    int chunk_slab = CHUNK_EDGE * CHUNK_EDGE;
+    int chunk_row = CHUNK_EDGE;
 
-    if (x < 0 || x >= CHUNK_EDGE_LENGTH || y < 0 || y >= CHUNK_EDGE_LENGTH || z < 0 || z >= CHUNK_EDGE_LENGTH)
+    if (x < 0 || x >= CHUNK_EDGE || y < 0 || y >= CHUNK_EDGE || z < 0 || z >= CHUNK_EDGE)
     {
         return -1;
     }
@@ -13,36 +13,44 @@ int chunk_get_block_from_position(chunk *c, int x, int y, int z)
 }
 void chunk_get_position_from_block(chunk *c, int i, vec3 output, int line)
 {
-    const int chunk_total = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    const int chunk_slab = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    const int chunk_row = CHUNK_EDGE_LENGTH;
-    verify(i >= 0 && i < chunk_total, "trying to get position of non-existant block", line);
+    verify(i >= 0 && i < CHUNK_TOTAL, "trying to get position of non-existant block", line);
 
-    int z = i / (chunk_slab);
-    int y = (i - (z * chunk_slab)) / chunk_row;
-    int x = i - (z * chunk_slab) - (y * chunk_row);
+    int z = i / (CHUNK_SLAB);
+    int y = (i - (z * CHUNK_SLAB)) / CHUNK_EDGE;
+    int x = i - (z * CHUNK_SLAB) - (y * CHUNK_EDGE);
     glm_vec3_copy((vec3){x, y, z}, output);
 }
 void chunk_generation(chunk *c, int _x, int _y, int _z)
 {
+    // calc noise
+    // int landscape[16][16][16] = noise(x, y, z);
+    int landscape[CHUNK_EDGE][CHUNK_EDGE][CHUNK_EDGE];
+    for (int z = 0; z < CHUNK_EDGE; ++z)
+    {
+        for (int y = 0; y < CHUNK_EDGE; ++y)
+        {
+            for (int x = 0; x < CHUNK_EDGE; ++x)
+            {
+                landscape[x][y][z] = BLOCK_NULL;
+                if (y < z)
+                    landscape[x][y][z] = BLOCK_GRASS;
+                if (y < 2)
+                    landscape[x][y][z] = BLOCK_ROCK;
+            }
+        }
+    }
+
+    srand(time(NULL));
     c->x = _x;
     c->y = _y;
     c->z = _z;
-    for (int z = 0; z < CHUNK_EDGE_LENGTH; ++z)
+    for (int z = 0; z < CHUNK_EDGE; ++z)
     {
-        for (int y = 0; y < CHUNK_EDGE_LENGTH; ++y)
+        for (int y = 0; y < CHUNK_EDGE; ++y)
         {
-            for (int x = 0; x < CHUNK_EDGE_LENGTH; ++x)
+            for (int x = 0; x < CHUNK_EDGE; ++x)
             {
-                voxel v = {
-                    .id = BLOCK_NULL,
-                };
-                if (y < 3)
-                    v.id = BLOCK_ROCK;
-                if (y > 2 && y < 4)
-                    v.id = BLOCK_GRASS;
-
-                c->blocks[z * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH + y * CHUNK_EDGE_LENGTH + x] = v;
+                c->blocks[z * CHUNK_EDGE * CHUNK_EDGE + y * CHUNK_EDGE + x].id = landscape[x][y][z];
             }
         }
     }
@@ -51,7 +59,7 @@ void chunk_generation(chunk *c, int _x, int _y, int _z)
 
 void chunk_allocate(chunk *c)
 {
-    c->mesh = (int *)calloc(CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH, sizeof(block_vertices));
+    c->mesh = (int *)calloc(CHUNK_TOTAL, sizeof(block_vertices));
     verify(c->mesh, "couldn't allocate a chunk of memory", __LINE__);
 }
 void chunk_free(chunk *c)
@@ -66,13 +74,12 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
 {
     verify(c, "cannot build chunk mesh, chunk does not exist.", __LINE__);
     verify(c->mesh, "cannot build chunk mesh, mesh pointer is NULL. Maybe it's not been allocated?", __LINE__);
-    memset(c->mesh, 0, block_limit * sizeof(block_vertices));
+    memset(c->mesh, 0, CHUNK_TOTAL * sizeof(block_vertices));
 
-    const int chunk_total = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    const int chunk_slab = CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH;
-    const int chunk_row = CHUNK_EDGE_LENGTH;
+    const int chunk_slab = CHUNK_EDGE * CHUNK_EDGE;
+    const int chunk_row = CHUNK_EDGE;
     int mesh_size = 0;
-    for (int block_index = 0; block_index < block_limit; ++block_index)
+    for (int block_index = 0; block_index < CHUNK_TOTAL; ++block_index)
     {
         if (c->blocks[block_index].id == BLOCK_NULL)
         {
@@ -83,7 +90,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         chunk_get_position_from_block(c, block_index, block_pos, __LINE__);
         int x = block_pos[0];
         int y = block_pos[1];
-        int z = block_pos[2];        
+        int z = block_pos[2]; 
 
         int v_count = sizeof(block_vertices) / sizeof(block_vertices[0]);
         int cube_tri_count = 36;
@@ -102,14 +109,14 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
             switch (normal_index)
             {
             case 0:
-                if (z < CHUNK_EDGE_LENGTH - 1)
+                if (z < CHUNK_EDGE - 1)
                 {
                     if (c->blocks[block_index + chunk_slab].id != BLOCK_NULL)
                         skip_face = true;
                 }
                 else if (forwards != NULL)
                 {
-                    int other_chunk_block_index = block_index - chunk_total + chunk_slab;
+                    int other_chunk_block_index = block_index - CHUNK_TOTAL + chunk_slab;
                     block_id other_chunk_block_id = forwards->blocks[other_chunk_block_index].id;
 
                     if (other_chunk_block_id != BLOCK_NULL)
@@ -124,7 +131,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
                 }
                 else if (backwards != NULL)
                 {
-                    int other_chunk_block_index = block_index + chunk_total - chunk_slab;
+                    int other_chunk_block_index = block_index + CHUNK_TOTAL - chunk_slab;
                     block_id other_chunk_block_id = backwards->blocks[other_chunk_block_index].id;
 
                     if (other_chunk_block_id != BLOCK_NULL)
@@ -132,7 +139,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
                 }
                 break;
             case 2:
-                if (y < CHUNK_EDGE_LENGTH - 1)
+                if (y < CHUNK_EDGE - 1)
                 {
                     if (c->blocks[block_index + chunk_row].id != BLOCK_NULL)
                         skip_face = true;
@@ -162,7 +169,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
                 }
                 break;
             case 4:
-                if (x < CHUNK_EDGE_LENGTH - 1)
+                if (x < CHUNK_EDGE - 1)
                 {
                     if (c->blocks[block_index + 1].id != BLOCK_NULL)
                         skip_face = true;
@@ -199,7 +206,9 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
             if (skip_face)
                 continue;
 
-            vec3 vertex_offset = {(double)x, (double)y, (double)z};
+            vec3 vertex_offset = {x, y, z};
+                int t_x = (c->blocks[block_index].id % c->texture_width) + 1;
+                int t_y = c->blocks[block_index].id / c->texture_width;
             for (int vertex_index = 0; vertex_index < face_vertex_count; vertex_index += vertex_data_size)
             {
                 // position
@@ -207,9 +216,6 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
                 offset_cube[block_mesh_size + vertex_index + 1] = block_vertices[face_index + vertex_index + 1] + vertex_offset[1];
                 offset_cube[block_mesh_size + vertex_index + 2] = block_vertices[face_index + vertex_index + 2] + vertex_offset[2];
                 // texture
-                int t_x = c->blocks[block_index].id % c->texture_width;
-                int t_y = c->blocks[block_index].id / c->texture_width;
-                t_x += 1;
                 offset_cube[block_mesh_size + vertex_index + 3] = block_vertices[face_index + vertex_index + 3] + t_x;
                 offset_cube[block_mesh_size + vertex_index + 4] = block_vertices[face_index + vertex_index + 4] + t_y;
             }
@@ -227,7 +233,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
     glBindVertexArray(c->vao);
     glBindBuffer(GL_ARRAY_BUFFER, c->vbo);
 
-    glBufferData(GL_ARRAY_BUFFER, sizeof(int) * 5 * c->mesh_size, c->mesh, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(int) * c->mesh_size, c->mesh, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_INT, GL_FALSE, 5 * sizeof(GL_INT), (void *)0);
     glEnableVertexAttribArray(0);
@@ -244,69 +250,69 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
         build_chunk_mesh(c, left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk);
         c->dirty = false;
     }
-    double closest_block_dist = DBL_MAX;
-    int closest_block_normal = -1;
-    for (int i = 0; i < block_limit; ++i)
-    {
-        block_id chunk_block_id = c->blocks[i].id;
-        if (chunk_block_id == BLOCK_NULL)
-        {
-            continue;
-        }
-        vec3 block_pos = {i % CHUNK_EDGE_LENGTH,
-                          (i / CHUNK_EDGE_LENGTH) % CHUNK_EDGE_LENGTH,
-                          i / (CHUNK_EDGE_LENGTH * CHUNK_EDGE_LENGTH)};
-        vec3 chunk_pos = {c->x * CHUNK_EDGE_LENGTH,
-                          c->y * CHUNK_EDGE_LENGTH,
-                          c->z * CHUNK_EDGE_LENGTH};
-        vec3 real_block_position = {};
-        glm_vec3_add(chunk_pos, block_pos, real_block_position);
-        vec3 block_min = {}, block_max = {};
-        glm_vec3_copy(real_block_position, block_min);
-        glm_vec3_add(real_block_position, (vec3){1.0, 1.0, 1.0}, block_max);
-        vec3 cam_com_dir = {
-            -cam->direction[0],
-            -cam->direction[1],
-            -cam->direction[2]};
+    // double closest_block_dist = DBL_MAX;
+    // int closest_block_normal = -1;
+    // for (int i = 0; i < CHUNK_TOTAL; ++i)
+    // {
+    //     block_id chunk_block_id = c->blocks[i].id;
+    //     if (chunk_block_id == BLOCK_NULL)
+    //     {
+    //         continue;
+    //     }
+    //     vec3 block_pos = {i % CHUNK_EDGE,
+    //                       (i / CHUNK_EDGE) % CHUNK_EDGE,
+    //                       i / (CHUNK_EDGE * CHUNK_EDGE)};
+    //     vec3 chunk_pos = {c->x * CHUNK_EDGE,
+    //                       c->y * CHUNK_EDGE,
+    //                       c->z * CHUNK_EDGE};
+    //     vec3 real_block_position = {};
+    //     glm_vec3_add(chunk_pos, block_pos, real_block_position);
+    //     vec3 block_min = {}, block_max = {};
+    //     glm_vec3_copy(real_block_position, block_min);
+    //     glm_vec3_add(real_block_position, (vec3){1.0, 1.0, 1.0}, block_max);
+    //     vec3 cam_com_dir = {
+    //         -cam->look_direction[0],
+    //         -cam->look_direction[1],
+    //         -cam->look_direction[2]};
 
-        bool looking_at = ray_voxel_colliding(cam->pos, cam_com_dir, block_min, block_max, &closest_block_normal);
-        if (!looking_at)
-            continue;
+    //     bool looking_at = ray_voxel_colliding(cam->position, cam_com_dir, block_min, block_max, &closest_block_normal);
+    //     if (!looking_at)
+    //         continue;
         
-        float dist = glm_vec3_distance2(cam->pos, real_block_position);
-        if (dist < closest_block_dist)
-        {
-            closest_block_dist = dist;
-            double *look_block_dist = lookat_block_distance;
-            if (closest_block_dist < *look_block_dist)
-            {
-                *lookat_block = i;
-                *lookat_block_normal = closest_block_normal;
-                *look_block_dist = closest_block_dist;
-                *lookat_chunk_normal = -1;
+    //     float dist = glm_vec3_distance2(cam->position, real_block_position);
+    //     if (dist < closest_block_dist)
+    //     {
+    //         closest_block_dist = dist;
+    //         double *look_block_dist = lookat_block_distance;
+    //         if (closest_block_dist < *look_block_dist)
+    //         {
+    //             *lookat_block = i;
+    //             *lookat_block_normal = closest_block_normal;
+    //             *look_block_dist = closest_block_dist;
+    //             *lookat_chunk_normal = -1;
 
-                if (*lookat_block_normal == 1 && block_pos[0] >= CHUNK_EDGE_LENGTH - 1)
-                    *lookat_chunk_normal = 1;
-                if (*lookat_block_normal == 0 && block_pos[0] <= 0)
-                    *lookat_chunk_normal = 0;
-                if (*lookat_block_normal == 3 && block_pos[1] >= CHUNK_EDGE_LENGTH - 1)
-                    *lookat_chunk_normal = 3;
-                if (*lookat_block_normal == 2 && block_pos[1] <= 0)
-                    *lookat_chunk_normal = 2;
-                if (*lookat_block_normal == 5 && block_pos[2] >= CHUNK_EDGE_LENGTH - 1)
-                    *lookat_chunk_normal = 5;
-                if (*lookat_block_normal == 4 && block_pos[2] <= 0)
-                    *lookat_chunk_normal = 4;
-            }
-        }
-    }
+    //             if (*lookat_block_normal == 1 && block_pos[0] >= CHUNK_EDGE - 1)
+    //                 *lookat_chunk_normal = 1;
+    //             if (*lookat_block_normal == 0 && block_pos[0] <= 0)
+    //                 *lookat_chunk_normal = 0;
+    //             if (*lookat_block_normal == 3 && block_pos[1] >= CHUNK_EDGE - 1)
+    //                 *lookat_chunk_normal = 3;
+    //             if (*lookat_block_normal == 2 && block_pos[1] <= 0)
+    //                 *lookat_chunk_normal = 2;
+    //             if (*lookat_block_normal == 5 && block_pos[2] >= CHUNK_EDGE - 1)
+    //                 *lookat_chunk_normal = 5;
+    //             if (*lookat_block_normal == 4 && block_pos[2] <= 0)
+    //                 *lookat_chunk_normal = 4;
+    //         }
+    //     }
+    // }
 }
 void draw_chunk(chunk *c, shader_list *shaders)
 {
     mat4 model;
     glm_mat4_identity(model);
     // transform model based on chunk position
-    glm_translate(model, (vec3){c->x * CHUNK_EDGE_LENGTH, c->y * CHUNK_EDGE_LENGTH, c->z * CHUNK_EDGE_LENGTH});
+    glm_translate(model, (vec3){c->x * CHUNK_EDGE, c->y * CHUNK_EDGE, c->z * CHUNK_EDGE});
     shader_set_mat4x4(shaders, SHADER_COMMON, "model", model);
     shader_set_int(shaders, SHADER_COMMON, "tex", 1);
     shader_set_vec2(shaders, SHADER_COMMON, "texture_size", (vec2){2.0, 1.0});

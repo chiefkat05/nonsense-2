@@ -86,19 +86,3 @@ void chunk_map_print(chunk_hashmap *map)
     }
     printf("---end hashmap data. hashmap total size: %lu bytes---\n", map->count * sizeof(chunk *));
 }
-
-void chunk_map_cleanup(chunk_hashmap *map, vec3 player_pos, double render_distance)
-{
-    for (int i = 0; i < map->count; ++i)
-    {
-        if (!map->arr[i])
-            continue;
-
-        vec3 chunk_pos = {map->arr[i]->x * CHUNK_EDGE_LENGTH, map->arr[i]->y * CHUNK_EDGE_LENGTH, map->arr[i]->z * CHUNK_EDGE_LENGTH};
-        double distance = glm_vec3_distance2(player_pos, chunk_pos);
-        if (distance > render_distance)
-        {
-            chunk_map_remove(map, map->arr[i]->x, map->arr[i]->y, map->arr[i]->z);
-        }
-    }
-}
