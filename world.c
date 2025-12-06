@@ -111,12 +111,14 @@ void world_chunk_update(world *w, double *lookat_block_distance)
     int z_max = (int)(w->cam.position[2] / CHUNK_EDGE) + pos_world_vision;
     int x_min = (int)(w->cam.position[0] / CHUNK_EDGE) + neg_world_vision;
     int x_max = (int)(w->cam.position[0] / CHUNK_EDGE) + pos_world_vision;
-    // maybe?
+    // this doesn't work and I have literally no idea why
     // int y_min = (int)(w->cam.position[1] / CHUNK_EDGE) + neg_world_vision;
     // int y_max = (int)(w->cam.position[1] / CHUNK_EDGE) + pos_world_vision;
+    int y_min = -1;
+    int y_max = 0;
     for (int z = z_min; z < z_max; ++z)
     {
-        for (int y = -1; y < 0; ++y)
+        for (int y = y_min; y < y_max; ++y)
         {
             for (int x = x_min; x < x_max; ++x)
             {
@@ -223,19 +225,18 @@ void world_draw(world *w)
     int x_min = (int)(w->cam.real_position[0] / CHUNK_EDGE) + neg_world_vision;
     int x_max = (int)(w->cam.real_position[0] / CHUNK_EDGE) + pos_world_vision;
     // maybe?
-    // int y_min = (int)(w->cam.real_position[1] / CHUNK_EDGE) + neg_world_vision;
-    // int y_max = (int)(w->cam.real_position[1] / CHUNK_EDGE) + pos_world_vision;
+    int y_min = (int)(w->cam.real_position[1] / CHUNK_EDGE) + neg_world_vision;
+    int y_max = (int)(w->cam.real_position[1] / CHUNK_EDGE) + pos_world_vision;
 
     for (int z = z_min; z < z_max; ++z)
     {
-        for (int y = -1; y < 0; ++y)
+        for (int y = y_min; y < y_max; ++y)
         {
             for (int x = x_min; x < x_max; ++x)
             {
                 chunk *current = chunk_map_lookup(&w->chunk_map, x, y, z);
                 if (!current)
                     continue;
-
 
                 draw_chunk(current, &w->shaders);
             }

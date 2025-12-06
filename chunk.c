@@ -1,5 +1,125 @@
 #include "chunk.h"
 
+int chunk_dda_test(chunk *c, vec3 pos, vec3 dir, int *b_norm, int *ch_norm)
+{
+    int chunk_x = c->x * CHUNK_EDGE;
+    int chunk_y = c->y * CHUNK_EDGE;
+    int chunk_z = c->z * CHUNK_EDGE;
+
+    int x = floor(pos[0]) - chunk_x;
+    int y = floor(pos[1]) - chunk_y;
+    int z = floor(pos[2]) - chunk_z;
+
+    double x_step = (fabs(dir[0])/dir[0]);
+    double y_step = (fabs(dir[1])/dir[1]);
+    double z_step = (fabs(dir[2])/dir[2]);
+
+
+    double maxx = 0.0;
+    double maxy = 0.0;
+    double maxz = 0.0;
+    
+    double delta_x = x_step / dir[0];
+    double delta_y = y_step / dir[1];
+    double delta_z = z_step / dir[2];
+
+    if (x_step > 0)
+    {
+        maxx = ((floor(pos[0]) + 1.0) - pos[0]) * delta_x;
+    }
+    if (x_step < 0)
+    {
+        maxx = (pos[0] - floor(pos[0])) * delta_x;
+    }
+    if (y_step > 0)
+    {
+        maxy = ((floor(pos[1]) + 1.0) - pos[1]) * delta_y;
+    }
+    if (y_step < 0)
+    {
+        maxy = (pos[1] - floor(pos[1])) * delta_y;
+    }
+    if (z_step > 0)
+    {
+        maxz = ((floor(pos[2]) + 1.0) - pos[2]) * delta_z;
+    }
+    if (z_step < 0)
+    {
+        maxz = (pos[2] - floor(pos[2])) * delta_z;
+    }
+
+    int block_norm = -1;
+    int block = -1;
+
+    block_norm = -1;
+    while ((block == -1 || c->blocks[block].id == BLOCK_NULL))
+    {
+        block = chunk_get_block_from_position(x, y, z);
+        if (maxx < maxy && maxx < maxz)
+        {
+            x += x_step;
+            if ((x_step < 0 && x < 0) || (x_step > 0 && x >= CHUNK_EDGE))
+                return -1;
+
+            maxx += delta_x;
+            block_norm = x_step > 0 ? 0 : 1;
+            block = chunk_get_block_from_position(x, y, z);
+            continue;
+        }
+        if (maxy < maxx && maxy < maxz)
+        {
+            y += y_step;
+            if ((y_step < 0 && y < 0) || (y_step > 0 && y >= CHUNK_EDGE))
+                return -1;
+
+            maxy += delta_y;
+            block_norm = y_step > 0 ? 2 : 3;
+            block = chunk_get_block_from_position(x, y, z);
+            continue;
+        }
+        if (maxz < maxx && maxz < maxy)
+        {
+            z += z_step;
+            if ((z_step < 0 && z < 0) || (z_step > 0 && z >= CHUNK_EDGE))
+                return -1;
+
+            maxz += delta_z;
+            block_norm = z_step > 0 ? 4 : 5;
+            block = chunk_get_block_from_position(x, y, z);
+            continue;
+        }
+        return -1;
+    }
+    int chunk_norm = -1;
+    if (block_norm == 0 && x == 0)
+    {
+        chunk_norm = 0;
+    }
+    if (block_norm == 1 && x == CHUNK_EDGE - 1)
+    {
+        chunk_norm = 1;
+    }
+    if (block_norm == 2 && y == 0)
+    {
+        chunk_norm = 2;
+    }
+    if (block_norm == 3 && y == CHUNK_EDGE - 1)
+    {
+        chunk_norm = 3;
+    }
+    if (block_norm == 4 && z == 0)
+    {
+        chunk_norm = 4;
+    }
+    if (block_norm == 5 && z == CHUNK_EDGE - 1)
+    {
+        chunk_norm = 5;
+    }
+    *ch_norm = chunk_norm;
+    *b_norm = block_norm;
+    return block;
+}
+
 int chunk_get_block_from_position(int x, int y, int z)
 {
     if (x < 0 || x >= CHUNK_EDGE || y < 0 || y >= CHUNK_EDGE || z < 0 || z >= CHUNK_EDGE)
@@ -8,18 +128,19 @@ int chunk_get_block_from_position(int x, int y, int z)
     }
     return z * CHUNK_SLAB + y * CHUNK_EDGE + x;
 }
-void chunk_get_position_from_block(int i, vec3 output, int line)
+bool chunk_get_position_from_block(int i, vec3 output, int line)
 {
     if (i < 0 || i >= CHUNK_TOTAL)
     {
-        printf("block %i does not exist in chunk.\n", i);
-        return;
+        return false;
     }
 
     int z = i / (CHUNK_SLAB);
     int y = (i - (z * CHUNK_SLAB)) / CHUNK_EDGE;
     int x = i - (z * CHUNK_SLAB) - (y * CHUNK_EDGE);
     glm_vec3_copy((vec3){x, y, z}, output);
+
+    return true;
 }
 void chunk_generation(chunk *c, int _x, int _y, int _z)
 {
@@ -209,8 +330,21 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
                 continue;
 
             vec3 vertex_offset = {x, y, z};
-                int t_x = (c->blocks[block_index].id % c->texture_width) + 1;
-                int t_y = c->blocks[block_index].id / c->texture_width;
+            int t_x = (c->blocks[block_index].id % c->texture_width) + 1;
+            int t_y = c->blocks[block_index].id / c->texture_width;
+
+            switch(c->blocks[block_index].id)
+            {
+                case BLOCK_GRASS:
+                    if (normal_index == 0 || normal_index == 1 || normal_index == 4 || normal_index == 5 || normal_index == 3)
+                    {
+                        t_x = 1;
+                        t_y = 0;
+                    }
+                    break;
+                default:
+                    break;
+            }
             for (int vertex_index = 0; vertex_index < face_vertex_count; vertex_index += vertex_data_size)
             {
                 // position
@@ -252,62 +386,23 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
         build_chunk_mesh(c, left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk);
         c->dirty = false;
     }
-    // double closest_block_dist = DBL_MAX;
-    // int closest_block_normal = -1;
-    // for (int i = 0; i < CHUNK_TOTAL; ++i)
-    // {
-    //     block_id chunk_block_id = c->blocks[i].id;
-    //     if (chunk_block_id == BLOCK_NULL)
-    //     {
-    //         continue;
-    //     }
-    //     vec3 block_pos = {i % CHUNK_EDGE,
-    //                       (i / CHUNK_EDGE) % CHUNK_EDGE,
-    //                       i / (CHUNK_EDGE * CHUNK_EDGE)};
-    //     vec3 chunk_pos = {c->x * CHUNK_EDGE,
-    //                       c->y * CHUNK_EDGE,
-    //                       c->z * CHUNK_EDGE};
-    //     vec3 real_block_position = {};
-    //     glm_vec3_add(chunk_pos, block_pos, real_block_position);
-    //     vec3 block_min = {}, block_max = {};
-    //     glm_vec3_copy(real_block_position, block_min);
-    //     glm_vec3_add(real_block_position, (vec3){1.0, 1.0, 1.0}, block_max);
-    //     vec3 cam_com_dir = {
-    //         -cam->look_direction[0],
-    //         -cam->look_direction[1],
-    //         -cam->look_direction[2]};
 
-    //     bool looking_at = ray_voxel_colliding(cam->position, cam_com_dir, block_min, block_max, &closest_block_normal);
-    //     if (!looking_at)
-    //         continue;
-        
-    //     float dist = glm_vec3_distance2(cam->position, real_block_position);
-    //     if (dist < closest_block_dist)
-    //     {
-    //         closest_block_dist = dist;
-    //         double *look_block_dist = lookat_block_distance;
-    //         if (closest_block_dist < *look_block_dist)
-    //         {
-    //             *lookat_block = i;
-    //             *lookat_block_normal = closest_block_normal;
-    //             *look_block_dist = closest_block_dist;
-    //             *lookat_chunk_normal = -1;
+    int block = chunk_dda_test(c, cam->real_position, cam->inv_look_direction, lookat_block_normal, lookat_chunk_normal);
 
-    //             if (*lookat_block_normal == 1 && block_pos[0] >= CHUNK_EDGE - 1)
-    //                 *lookat_chunk_normal = 1;
-    //             if (*lookat_block_normal == 0 && block_pos[0] <= 0)
-    //                 *lookat_chunk_normal = 0;
-    //             if (*lookat_block_normal == 3 && block_pos[1] >= CHUNK_EDGE - 1)
-    //                 *lookat_chunk_normal = 3;
-    //             if (*lookat_block_normal == 2 && block_pos[1] <= 0)
-    //                 *lookat_chunk_normal = 2;
-    //             if (*lookat_block_normal == 5 && block_pos[2] >= CHUNK_EDGE - 1)
-    //                 *lookat_chunk_normal = 5;
-    //             if (*lookat_block_normal == 4 && block_pos[2] <= 0)
-    //                 *lookat_chunk_normal = 4;
-    //         }
-    //     }
-    // }
+    vec3 block_position = {};
+    if (!chunk_get_position_from_block(block, block_position, __LINE__))
+        return;
+
+    vec3 global_block_position = {c->x * CHUNK_EDGE + block_position[0],
+                                c->y * CHUNK_EDGE + block_position[1],
+                                c->z * CHUNK_EDGE + block_position[2]};
+
+    double block_dist = glm_vec3_distance2(global_block_position, cam->position);
+    if (block_dist < *lookat_block_distance)
+    {
+        *lookat_block_distance = block_dist;
+        *lookat_block = block;
+    }
 }
 void draw_chunk(chunk *c, shader_list *shaders)
 {

@@ -35,6 +35,8 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
 void draw_chunk(chunk *c, shader_list *shaders);
 
 int chunk_get_block_from_position(int x, int y, int z);
-void chunk_get_position_from_block(int i, vec3 output, int line);
+bool chunk_get_position_from_block(int i, vec3 output, int line);
+
+int chunk_dda_test(chunk *c, vec3 pos, vec3 dir, int *b_norm, int *ch_norm);
 
 #endif
