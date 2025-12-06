@@ -23,7 +23,7 @@ int chunk_map_function(int x, int y, int z)
 {
     // ! idea: make this 'not' perfectly unique, by subtracting the player position or something, keeping the hash function always
     // centered around where the player is. That will make the hash map stay as small as the render_area (render distance) at all times
-    // but don't bother rushing to implement this, just get it done before 1.0 release
+    // but don't bother rushing to implement this, at least try it before 1.0 release
     int out_x = abs(x) * 2;
     int out_y = abs(y) * 2;
     int out_z = abs(z) * 2;
@@ -70,7 +70,7 @@ chunk *chunk_map_lookup(chunk_hashmap *map, int x, int y, int z)
     {
         return NULL;
     }
-        
+
     return map->arr[index];
 }
 void chunk_map_print(chunk_hashmap *map)

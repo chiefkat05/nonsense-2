@@ -9,8 +9,8 @@ static bool global_resize_alert;
 static int global_window_width;
 static int global_window_height;
 
-unsigned int world_local_edge_size = 10;
-double render_distance = 5000.0;
+unsigned int world_local_edge_size = 5;
+// double render_distance = 50.0;
 float *camera_position;
 
 void framebuffer_size(GLFWwindow *window, int width, int height);
@@ -32,10 +32,6 @@ int ui_vertices[] = {
     -1,  1, 0
 };
 void make_ui_element()
-{
-
-}
-void load_png_texture(const char *path, unsigned int opengl_texture_index)
 {
 
 }
@@ -78,11 +74,11 @@ int main()
 
     world game_world = {};
     camera_setup(&game_world.cam, (vec3){0.0, 0.0, -3.0}, (vec3){0.0, 0.0, 0.0});
-    glm_perspective(45, (double)WINDOW_WIDTH / (double)WINDOW_HEIGHT, 0.1, 100.0, proj);
+    glm_perspective(45, (double)WINDOW_WIDTH / (double)WINDOW_HEIGHT, 0.1, 500.0, proj);
 
     create_shader(&game_world.shaders, SHADER_COMMON, "./vertex.shader", "./fragment.shader");
 
-    chunk_map_alloc(&game_world.chunk_map, world_local_edge_size * world_local_edge_size * world_local_edge_size);
+    chunk_map_alloc(&game_world.chunk_map, world_local_edge_size * world_local_edge_size * world_local_edge_size * 2);
     game_world.texture_id = texture_load_from_bmp(1, "./atlas.bmp", &game_world.texture_width, &game_world.texture_height);
     game_world.texture_width /= 16;
     game_world.texture_height /= 16;
@@ -209,7 +205,7 @@ void framebuffer_size(GLFWwindow *window, int width, int height)
 void process_input(GLFWwindow *window, camera *cam, double tick_speed)
 {
     vec3 movement = {};
-    double speed = 4.0;
+    double speed = 12.0;
 
     glm_cross(cam->walk_direction, cam->up, cam->right);
 

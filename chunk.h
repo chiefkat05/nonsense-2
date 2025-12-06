@@ -17,7 +17,7 @@ typedef struct
     int *mesh;
     int mesh_size;
     voxel blocks[CHUNK_TOTAL];
-    bool dirty;
+    bool dirty, partial_dirty;
     unsigned int vao, vbo;
     unsigned int texture_id, texture_width, texture_height;
     bool generated;
@@ -28,7 +28,7 @@ void chunk_generation(chunk *c, int _x, int _y, int _z);
 void chunk_allocate(chunk *c);
 void chunk_free(chunk *c);
 
-void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chunk *backwards, chunk *up, chunk *down);
+void chunk_build_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chunk *backwards, chunk *up, chunk *down);
 void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwards_chunk,
                   chunk *backwards_chunk, chunk *up_chunk, chunk *down_chunk, camera *cam,
                   int *lookat_block, int *lookat_block_normal, double *lookat_block_distance, int *lookat_chunk_normal);

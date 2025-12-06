@@ -142,6 +142,45 @@ bool chunk_get_position_from_block(int i, vec3 output, int line)
 
     return true;
 }
+
+double fract(double d)
+{
+    return d - (int)d;
+}
+double vrandom(vec2 v)
+{
+    return fract(sin(glm_vec2_dot(v, (vec2){12.9898,54.233})) * 43758.5453123);
+}
+
+double noise_value(vec2 v)
+{
+    vec2 i = {};
+    glm_vec2_floor(v, i);
+    vec2 f = {};
+    glm_vec2_fract(v, f);
+    
+    vec2 i2 = {};
+    glm_vec2_add(i, (vec2){1.0, 0.0}, i2);
+    vec2 i3 = {};
+    glm_vec2_add(i, (vec2){0.0, 1.0}, i3);
+    vec2 i4 = {};
+    glm_vec2_add(i, (vec2){1.0, 1.0}, i4);
+
+    double tl = vrandom(i);
+    double tr = vrandom(i2);
+    double bl = vrandom(i3);
+    double br = vrandom(i4);
+
+    glm_smoothstep(0.0, 1.0, f[0]);
+    glm_smoothstep(0.0, 1.0, f[2]);
+
+    return glm_lerp(glm_lerp(tl, tr, f[0]), glm_lerp(bl, br, f[0]), f[1]);
+}
+
+double noise_sine(vec2 v)
+{
+    return sin(v[0] * 4.0) + sin(v[1] * 4.0);
+}
 void chunk_generation(chunk *c, int _x, int _y, int _z)
 {
     c->x = _x;
@@ -151,17 +190,24 @@ void chunk_generation(chunk *c, int _x, int _y, int _z)
     int landscape[CHUNK_EDGE][CHUNK_EDGE][CHUNK_EDGE];
     for (int z = 0; z < CHUNK_EDGE; ++z)
     {
-        for (int y = 0; y < CHUNK_EDGE; ++y)
+        for (int y = CHUNK_EDGE - 1; y > -1; --y)
         {
             for (int x = 0; x < CHUNK_EDGE; ++x)
             {
                 landscape[x][y][z] = BLOCK_NULL;
+
+                if (c->y > -1)
+                    continue;
+
+                double x_input = (double)x / (double)CHUNK_EDGE;
+                double z_input = (double)z / (double)CHUNK_EDGE;
+                double ny = noise_sine((vec2){x_input, z_input}) * (double)6.0;
                 
-                if (y < z)
+                if (y < ny)
                     landscape[x][y][z] = BLOCK_GRASS;
                 if (y < 2)
                     landscape[x][y][z] = BLOCK_ROCK;
-                if (c->x == 0 && c->y == -1 && c->z == 0)
+                if (y + 1 < CHUNK_EDGE && landscape[x][y + 1][z] != BLOCK_NULL)
                     landscape[x][y][z] = BLOCK_ROCK;
             }
         }
@@ -193,15 +239,42 @@ void chunk_free(chunk *c)
     free(c->mesh);
 }
 
-void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chunk *backwards, chunk *up, chunk *down)
+// this should be working whyyyyy
+void chunk_build_partial_mesh(chunk *c)
+{
+    for (int i = 0; i < CHUNK_TOTAL; ++i)
+    {
+        if (!c->blocks[i].dirty)
+            continue;
+        
+        int *mesh = c->mesh;
+        mesh += c->blocks[i].mesh_location;
+        int *mesh_top_half = mesh + c->blocks[i].size;
+        // if (c->blocks[i].id == BLOCK_NULL)
+        // {
+        memcpy(mesh, mesh_top_half, c->mesh_size - c->blocks[i].size);
+        c->mesh_size -= c->blocks[i].size;
+        // }
+
+        printf("removed block of size %i, mesh size now %i.\n", c->blocks[i].size, c->mesh_size);
+
+        c->blocks[i].dirty = false;
+    }
+}
+void chunk_build_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chunk *backwards, chunk *up, chunk *down)
 {
     verify(c, "cannot build chunk mesh, chunk does not exist.", __LINE__);
     verify(c->mesh, "cannot build chunk mesh, mesh pointer is NULL. Maybe it's not been allocated?", __LINE__);
-    memset(c->mesh, 0, CHUNK_TOTAL * sizeof(block_vertices));
+    // memset(c->mesh, 0, CHUNK_TOTAL * sizeof(block_vertices));
 
     const int chunk_slab = CHUNK_EDGE * CHUNK_EDGE;
     const int chunk_row = CHUNK_EDGE;
     int mesh_size = 0;
+    int v_count = sizeof(block_vertices) / sizeof(block_vertices[0]);
+    int cube_tri_count = 36;
+    int vertex_data_size = v_count / cube_tri_count;
+
+    int face_vertex_count = vertex_data_size * 6;
     for (int block_index = 0; block_index < CHUNK_TOTAL; ++block_index)
     {
         if (c->blocks[block_index].id == BLOCK_NULL)
@@ -215,11 +288,6 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         int y = block_pos[1];
         int z = block_pos[2]; 
 
-        int v_count = sizeof(block_vertices) / sizeof(block_vertices[0]);
-        int cube_tri_count = 36;
-        int vertex_data_size = v_count / cube_tri_count;
-
-        int face_vertex_count = vertex_data_size * 6;
         int offset_cube[v_count];
 
         int block_mesh_size = 0;
@@ -330,15 +398,21 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
                 continue;
 
             vec3 vertex_offset = {x, y, z};
-            int t_x = (c->blocks[block_index].id % c->texture_width) + 1;
-            int t_y = c->blocks[block_index].id / c->texture_width;
+            
+            int t_x = texture_locs[c->blocks[block_index].id][0];
+            int t_y = texture_locs[c->blocks[block_index].id][1];
 
             switch(c->blocks[block_index].id)
             {
                 case BLOCK_GRASS:
-                    if (normal_index == 0 || normal_index == 1 || normal_index == 4 || normal_index == 5 || normal_index == 3)
+                    if ((rand() % 90) < 1)
                     {
                         t_x = 1;
+                        t_y = 0;
+                    }
+                    if ((rand() % 20) < 1)
+                    {
+                        t_x = 0;
                         t_y = 0;
                     }
                     break;
@@ -383,9 +457,14 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
 {
     if (c->dirty)
     {
-        build_chunk_mesh(c, left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk);
+        chunk_build_mesh(c, left_chunk, right_chunk, forwards_chunk, backwards_chunk, up_chunk, down_chunk);
         c->dirty = false;
     }
+    // if (c->partial_dirty)
+    // {
+    //     chunk_build_partial_mesh(c);
+    //     c->partial_dirty = false;
+    // }
 
     int block = chunk_dda_test(c, cam->real_position, cam->inv_look_direction, lookat_block_normal, lookat_chunk_normal);
 
@@ -412,7 +491,7 @@ void draw_chunk(chunk *c, shader_list *shaders)
     glm_translate(model, (vec3){c->x * CHUNK_EDGE, c->y * CHUNK_EDGE, c->z * CHUNK_EDGE});
     shader_set_mat4x4(shaders, SHADER_COMMON, "model", model);
     shader_set_int(shaders, SHADER_COMMON, "tex", 1);
-    shader_set_vec2(shaders, SHADER_COMMON, "texture_size", (vec2){2.0, 1.0});
+    shader_set_vec2(shaders, SHADER_COMMON, "texture_size", (vec2){c->texture_width, c->texture_height});
 
     glBindVertexArray(c->vao);
     glDrawArrays(GL_TRIANGLES, 0, c->mesh_size);
