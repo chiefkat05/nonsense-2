@@ -19,7 +19,5 @@ void chunk_map_remove(chunk_hashmap *map, int x, int y, int z);
 chunk *chunk_map_lookup(chunk_hashmap *map, int x, int y, int z);
 void chunk_map_print(chunk_hashmap *map);
 
-void chunk_map_cleanup(chunk_hashmap *map, vec3 player_pos, double render_distance);
-
 
 #endif

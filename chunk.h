@@ -34,7 +34,7 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
                   int *lookat_block, int *lookat_block_normal, double *lookat_block_distance, int *lookat_chunk_normal);
 void draw_chunk(chunk *c, shader_list *shaders);
 
-int chunk_get_block_from_position(chunk *c, int x, int y, int z);
-void chunk_get_position_from_block(chunk *c, int i, vec3 output, int line);
+int chunk_get_block_from_position(int x, int y, int z);
+void chunk_get_position_from_block(int i, vec3 output, int line);
 
 #endif

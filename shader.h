@@ -37,10 +37,12 @@ typedef struct
     versor real_pitch_rotation, real_yaw_rotation;
 
     versor pitch_rotation, last_pitch_rotation, yaw_rotation, last_yaw_rotation;
-    vec3 position, last_position, look_direction, walk_direction, up, right;
+    vec3 position, last_position, look_direction, inv_look_direction, walk_direction, up, right;
     mat4 view;
     double yaw, pitch;
     bool mouse_focused;
+
+    double reach_distance;
 } camera;
 
 void camera_setup(camera *cam, vec3 pos, vec3 target);

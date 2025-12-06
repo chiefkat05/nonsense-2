@@ -2,13 +2,13 @@
 
 void world_break_block(world *w)
 {
-    if (w->lookat_block < 0 || !w->lookat_chunk)
+    if (w->lookat_block < 0 || w->lookat_block > CHUNK_TOTAL || !w->lookat_chunk)
         return;
     w->lookat_chunk->blocks[w->lookat_block].id = BLOCK_NULL;
     w->lookat_chunk->dirty = true;
 
     vec3 block_pos = {};
-    chunk_get_position_from_block(w->lookat_chunk, w->lookat_block, block_pos, __LINE__);
+    chunk_get_position_from_block(w->lookat_block, block_pos, __LINE__);
 
     int x = block_pos[0];
     int y = block_pos[1];
@@ -112,8 +112,8 @@ void world_chunk_update(world *w, double *lookat_block_distance)
     int x_min = (int)(w->cam.position[0] / CHUNK_EDGE) + neg_world_vision;
     int x_max = (int)(w->cam.position[0] / CHUNK_EDGE) + pos_world_vision;
     // maybe?
-    int y_min = (int)(w->cam.position[1] / CHUNK_EDGE) + neg_world_vision;
-    int y_max = (int)(w->cam.position[1] / CHUNK_EDGE) + pos_world_vision;
+    // int y_min = (int)(w->cam.position[1] / CHUNK_EDGE) + neg_world_vision;
+    // int y_max = (int)(w->cam.position[1] / CHUNK_EDGE) + pos_world_vision;
     for (int z = z_min; z < z_max; ++z)
     {
         for (int y = -1; y < 0; ++y)
@@ -223,8 +223,8 @@ void world_draw(world *w)
     int x_min = (int)(w->cam.real_position[0] / CHUNK_EDGE) + neg_world_vision;
     int x_max = (int)(w->cam.real_position[0] / CHUNK_EDGE) + pos_world_vision;
     // maybe?
-    int y_min = (int)(w->cam.real_position[1] / CHUNK_EDGE) + neg_world_vision;
-    int y_max = (int)(w->cam.real_position[1] / CHUNK_EDGE) + pos_world_vision;
+    // int y_min = (int)(w->cam.real_position[1] / CHUNK_EDGE) + neg_world_vision;
+    // int y_max = (int)(w->cam.real_position[1] / CHUNK_EDGE) + pos_world_vision;
 
     for (int z = z_min; z < z_max; ++z)
     {

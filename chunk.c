@@ -1,19 +1,20 @@
 #include "chunk.h"
 
-int chunk_get_block_from_position(chunk *c, int x, int y, int z)
+int chunk_get_block_from_position(int x, int y, int z)
 {
-    int chunk_slab = CHUNK_EDGE * CHUNK_EDGE;
-    int chunk_row = CHUNK_EDGE;
-
     if (x < 0 || x >= CHUNK_EDGE || y < 0 || y >= CHUNK_EDGE || z < 0 || z >= CHUNK_EDGE)
     {
         return -1;
     }
-    return z * chunk_slab + y * chunk_row + x;
+    return z * CHUNK_SLAB + y * CHUNK_EDGE + x;
 }
-void chunk_get_position_from_block(chunk *c, int i, vec3 output, int line)
+void chunk_get_position_from_block(int i, vec3 output, int line)
 {
-    verify(i >= 0 && i < CHUNK_TOTAL, "trying to get position of non-existant block", line);
+    if (i < 0 || i >= CHUNK_TOTAL)
+    {
+        printf("block %i does not exist in chunk.\n", i);
+        return;
+    }
 
     int z = i / (CHUNK_SLAB);
     int y = (i - (z * CHUNK_SLAB)) / CHUNK_EDGE;
@@ -22,8 +23,10 @@ void chunk_get_position_from_block(chunk *c, int i, vec3 output, int line)
 }
 void chunk_generation(chunk *c, int _x, int _y, int _z)
 {
+    c->x = _x;
+    c->y = _y;
+    c->z = _z;
     // calc noise
-    // int landscape[16][16][16] = noise(x, y, z);
     int landscape[CHUNK_EDGE][CHUNK_EDGE][CHUNK_EDGE];
     for (int z = 0; z < CHUNK_EDGE; ++z)
     {
@@ -32,18 +35,17 @@ void chunk_generation(chunk *c, int _x, int _y, int _z)
             for (int x = 0; x < CHUNK_EDGE; ++x)
             {
                 landscape[x][y][z] = BLOCK_NULL;
+                
                 if (y < z)
                     landscape[x][y][z] = BLOCK_GRASS;
                 if (y < 2)
+                    landscape[x][y][z] = BLOCK_ROCK;
+                if (c->x == 0 && c->y == -1 && c->z == 0)
                     landscape[x][y][z] = BLOCK_ROCK;
             }
         }
     }
 
-    srand(time(NULL));
-    c->x = _x;
-    c->y = _y;
-    c->z = _z;
     for (int z = 0; z < CHUNK_EDGE; ++z)
     {
         for (int y = 0; y < CHUNK_EDGE; ++y)
@@ -87,7 +89,7 @@ void build_chunk_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chun
         }
         
         vec3 block_pos = {};
-        chunk_get_position_from_block(c, block_index, block_pos, __LINE__);
+        chunk_get_position_from_block(block_index, block_pos, __LINE__);
         int x = block_pos[0];
         int y = block_pos[1];
         int z = block_pos[2]; 

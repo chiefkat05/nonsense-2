@@ -128,17 +128,9 @@ void camera_setup(camera *cam, vec3 pos, vec3 target)
 {
     glm_vec3_copy((vec3){0.0, 1.0, 0.0}, cam->up);
     glm_vec3_copy(pos, cam->position);
-    // glm_vec3_copy(target, cam->target);
-    // glm_vec3_copy((vec3){0.0, 0.0, -1.0}, cam->direction);
+    cam->yaw = -180;
 
-    cam->yaw = -90.0;
-    // cam->direction[0] = cos(glm_rad(cam->yaw)) * cos(glm_rad(cam->pitch));
-    // cam->direction[1] = sin(glm_rad(cam->pitch));
-    // cam->direction[2] = sin(glm_rad(cam->yaw)) * cos(glm_rad(cam->pitch));
-
-    // glm_cross(cam->direction, cam->up, cam->right);
-
-    // glm_lookat(cam->position, cam->target, cam->up, cam->view);
+    cam->reach_distance = 10.0;
 }
 void camera_update(camera *cam, double yaw_update, double pitch_update, double tick_speed)
 {
