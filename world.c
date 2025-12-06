@@ -128,19 +128,29 @@ void world_chunk_update(world *w, double *lookat_block_distance)
 {
     int neg_world_vision = -(world_local_edge_size / 2);
     int pos_world_vision = (world_local_edge_size / 2);
-    // int z_min = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + neg_world_vision;
-    // int z_max = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + pos_world_vision;
-    // int x_min = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + neg_world_vision;
-    // int x_max = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + pos_world_vision;
-    int z_min = -20;
-    int z_max = 20;
-    int x_min = -20;
-    int x_max = 20;
+    int z_min = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + neg_world_vision;
+    int z_max = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + pos_world_vision;
+    int x_min = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + neg_world_vision;
+    int x_max = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + pos_world_vision;
+    // int z_min = -20;
+    // int z_max = 20;
+    // int x_min = -20;
+    // int x_max = 20;
     // this doesn't work and I have literally no idea why
+
+
+
+    // having y_min and y_max be anything other than -1 to 1 makes some or many (or all) of the pointers to the chunks
+    // inside the chunkmap to randomly(? seems consistant) point to a different chunk, thus causing the update
+    // array to skip a bunch of chunks and draw chunks in the wrong place because when it called the hash function
+    // the hash function gave it back the pointer at the right index... which happens to be the same pointer as a different
+    // chunk for some reason. Why this happens is unknown, and frankly nothing should be causing it and I'm pissed.
+    // why it specifically doesn't break when y is between these values is also illogical, but less illogical than
+    // the bug itself since the bug should not be possible on this mortal plane.
     // int y_min = (int)(w->cam.position[1] / CHUNK_EDGE) + neg_world_vision;
     // int y_max = (int)(w->cam.position[1] / CHUNK_EDGE) + pos_world_vision;
     int y_min = -1;
-    int y_max = 2;
+    int y_max = 0;
     // printf("------xmin=%i|xmax=%i--------ymin=%i|ymax=%i-----------zmin=%i|zmax=%i------\n",
             // x_min, x_max, y_min, y_max, z_min, z_max);
     for (int z = z_min; z < z_max; ++z)
