@@ -9,7 +9,7 @@ static bool global_resize_alert;
 static int global_window_width;
 static int global_window_height;
 
-unsigned int world_local_edge_size = 5;
+unsigned int world_local_edge_size = 16;
 // double render_distance = 50.0;
 float *camera_position;
 
@@ -147,22 +147,6 @@ int main()
         shader_set_mat4x4(&game_world.shaders, SHADER_COMMON, "view", game_world.cam.view);
         shader_set_mat4x4(&game_world.shaders, SHADER_COMMON, "proj", proj);
         world_draw(&game_world);
-
-        
-        // vec3 norm_cam_dir = {};
-        // glm_vec3_normalize_to(game_world.cam.inv_look_direction, norm_cam_dir);
-        // int block_see = chunk_dda_test(chunk_map_lookup(&game_world.chunk_map, 0, -1, 0),
-        //     game_world.cam.real_position, norm_cam_dir, &game_world.lookat_block_normal, &game_world.lookat_chunk_normal); // yay
-        // game_world.lookat_block = block_see;
-        // game_world.placement_block = block_see;
-        // game_world.lookat_chunk = chunk_map_lookup(&game_world.chunk_map, 0, -1, 0);
-        // game_world.placement_chunk = chunk_map_lookup(&game_world.chunk_map, 0, -1, 0);
-        // if (game_world.lookat_block != -1)
-        // {
-        //     vec3 block_pos = {};
-        //     chunk_get_position_from_block(game_world.lookat_block, block_pos, __LINE__);
-        //     // printf("looking at %f %f %f\n", block_pos[0], block_pos[1], block_pos[2]);
-        // }
 
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !left_held)
         {

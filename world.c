@@ -128,15 +128,19 @@ void world_chunk_update(world *w, double *lookat_block_distance)
 {
     int neg_world_vision = -(world_local_edge_size / 2);
     int pos_world_vision = (world_local_edge_size / 2);
-    int z_min = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + neg_world_vision;
-    int z_max = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + pos_world_vision;
-    int x_min = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + neg_world_vision;
-    int x_max = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + pos_world_vision;
+    // int z_min = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + neg_world_vision;
+    // int z_max = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + pos_world_vision;
+    // int x_min = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + neg_world_vision;
+    // int x_max = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + pos_world_vision;
+    int z_min = -20;
+    int z_max = 20;
+    int x_min = -20;
+    int x_max = 20;
     // this doesn't work and I have literally no idea why
     // int y_min = (int)(w->cam.position[1] / CHUNK_EDGE) + neg_world_vision;
     // int y_max = (int)(w->cam.position[1] / CHUNK_EDGE) + pos_world_vision;
     int y_min = -1;
-    int y_max = 4;
+    int y_max = 2;
     // printf("------xmin=%i|xmax=%i--------ymin=%i|ymax=%i-----------zmin=%i|zmax=%i------\n",
             // x_min, x_max, y_min, y_max, z_min, z_max);
     for (int z = z_min; z < z_max; ++z)
@@ -150,26 +154,37 @@ void world_chunk_update(world *w, double *lookat_block_distance)
                                        ((double)z + 0.5) * (double)CHUNK_EDGE};
                 double cam_dist = glm_vec3_distance(chunk_position, w->cam.real_position);
 
+                int current_id = chunk_map_function(x, y, z);
                 chunk *current = chunk_map_lookup(&w->chunk_map, x, y, z);
-                // if (x == -3 && y == -1 && z == 0 && current)
-                // {
-                //     for (int i = 0; i < CHUNK_TOTAL; ++i)
-                //     {
-                //         printf("%i", current->blocks[i].id);
-                //         if (i % 16 == 0)
-                //             printf(" ] %i\n", current->generated);
-                //     }
-                // }
+                // chunk *hold = NULL;
+                if (current) // ????????????????????????????????????????????????????????????????
+                {
+                    int chunk_x = current->x;
+                    int chunk_y = current->y;
+                    int chunk_z = current->z;
+                    if (chunk_x != x || chunk_y != y || chunk_z != z)
+                    {
+                        // current->x = x;
+                        // current->y = y;
+                        // current->z = z;
+                        // printf("%p chunk %i %i %i thinks it's %i %i %i\n", current, x, y, z, chunk_x, chunk_y, chunk_z);
+                        // hold = current;
+                        // if (x == -2 && y == 1 && z == -2)
+                        // {
+                            // current = NULL;
+                        // }
+                        // else
+                        // {
+                        // verify(false, "--------------", __LINE__);}
+                    }
+                }
+
                 bool new_chunk = false;
                 if (!current)
                 {
-                    // printf("generating chunk %i %i %i with hash id %i\n", x, y, z, chunk_map_function(x, y, z));
                     current = (chunk *)calloc(1, sizeof(chunk));
                     chunk_generation(current, x, y, z);
-                    if (x == -3 && y == -1 && z == 0 && current)
-                    {
-                        printf("huh %i %i\n", current->generated, chunk_map_function(x, y, z));
-                    }
+                    // printf("making chunk %p at loc %i %i %i\n", current, x, y, z);
                     chunk_allocate(current);
                     current->texture_id = w->texture_id;
                     current->texture_width = w->texture_width;
@@ -178,34 +193,46 @@ void world_chunk_update(world *w, double *lookat_block_distance)
                     chunk_map_insert(&w->chunk_map, x, y, z, current);
                     current->dirty = true;
                     new_chunk = true;
+                    // printf("%p, %p\n", current, hold);
+                    // if (current == hold)
+                    // {
+                    //     verify(false, "wwow", __LINE__);
+                    // }
                 }
                 if (cam_dist < 5.0)
                 {
-                    printf("currently in chunk %p pos %i %i %i\n", current, x, y, z);
+                    // printf("currently in chunk %p pos %i %i %i\n", current, x, y, z);
                 }
 
-                chunk *right = chunk_map_lookup(&w->chunk_map, x + 1, y, z);
-                chunk *left = chunk_map_lookup(&w->chunk_map, x - 1, y, z);
-                chunk *forwards = chunk_map_lookup(&w->chunk_map, x, y, z + 1);
-                chunk *backwards = chunk_map_lookup(&w->chunk_map, x, y, z - 1);
-                chunk *up = chunk_map_lookup(&w->chunk_map, x, y + 1, z);
-                chunk *down = chunk_map_lookup(&w->chunk_map, x, y - 1, z);
+                chunk *right = NULL;
+                chunk *left = NULL;
+                chunk *forwards = NULL;
+                chunk *backwards = NULL;
+                chunk *up = NULL;
+                chunk *down = NULL;
                 
-                if (new_chunk)
-                {
-                    if (right)
-                        right->dirty = true;
-                    if (left)
-                        left->dirty = true;
-                    if (forwards)
-                        forwards->dirty = true;
-                    if (backwards)
-                        backwards->dirty = true;
-                    if (up)
-                        up->dirty = true;
-                    if (down)
-                        down->dirty = true;
-                }
+                // chunk *right = chunk_map_lookup(&w->chunk_map, x + 1, y, z);
+                // chunk *left = chunk_map_lookup(&w->chunk_map, x - 1, y, z);
+                // chunk *forwards = chunk_map_lookup(&w->chunk_map, x, y, z + 1);
+                // chunk *backwards = chunk_map_lookup(&w->chunk_map, x, y, z - 1);
+                // chunk *up = chunk_map_lookup(&w->chunk_map, x, y + 1, z);
+                // chunk *down = chunk_map_lookup(&w->chunk_map, x, y - 1, z);
+                
+                // if (new_chunk)
+                // {
+                //     if (right)
+                //         right->dirty = true;
+                //     if (left)
+                //         left->dirty = true;
+                //     if (forwards)
+                //         forwards->dirty = true;
+                //     if (backwards)
+                //         backwards->dirty = true;
+                //     if (up)
+                //         up->dirty = true;
+                //     if (down)
+                //         down->dirty = true;
+                // }
                 
                 int temp_lookat = -1;
                 update_chunk(current, left, right, forwards, backwards, up, down,
@@ -251,15 +278,6 @@ void world_chunk_update(world *w, double *lookat_block_distance)
             }
         }
     }
-    chunk_map_print(&w->chunk_map);
-                chunk *cha = chunk_map_lookup(&w->chunk_map, -3, -1, 0);
-                chunk *cha2 = chunk_map_lookup(&w->chunk_map, 1, 2, 0);
-                printf("%p %p dd-------------------------------------------------------------------\n", cha, cha2);
-
-    int a = chunk_map_function(-3, 1, 0);
-    int b = chunk_map_function(1, 2, 0);
-    printf("%i %i\n", a, b);
-    verify(a != b, "!!!!!!!!!!!!!", __LINE__);
 }
 void world_draw(world *w)
 {
@@ -271,11 +289,11 @@ void world_draw(world *w)
     int x_min = (int)(w->cam.real_position[0] / CHUNK_EDGE) + neg_world_vision;
     int x_max = (int)(w->cam.real_position[0] / CHUNK_EDGE) + pos_world_vision;
     // maybe?
-    // int y_min = (int)(w->cam.real_position[1] / CHUNK_EDGE) + neg_world_vision;
-    // int y_max = (int)(w->cam.real_position[1] / CHUNK_EDGE) + pos_world_vision;
+    int y_min = ((int)w->cam.real_position[1] / CHUNK_EDGE) + neg_world_vision;
+    int y_max = ((int)w->cam.real_position[1] / CHUNK_EDGE) + pos_world_vision;
 
-    int y_min = -1;
-    int y_max = 4;
+    // int y_min = -1;
+    // int y_max = 4;
 
     for (int z = z_min; z < z_max; ++z)
     {

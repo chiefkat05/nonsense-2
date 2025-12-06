@@ -49,6 +49,8 @@ void chunk_map_insert(chunk_hashmap *map, int x, int y, int z, chunk *p_chunk)
 {
     unsigned int index = chunk_map_function(x, y, z);
 
+    // printf("inserting %i %i %i chunk %p\n", x, y, z, p_chunk);
+
     while (index >= map->count)
     {
         chunk_map_rehash(map);
