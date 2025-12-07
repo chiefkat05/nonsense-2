@@ -9,8 +9,7 @@ static bool global_resize_alert;
 static int global_window_width;
 static int global_window_height;
 
-unsigned int world_local_edge_size = 16;
-// double render_distance = 50.0;
+unsigned int world_local_edge_size = 8;
 float *camera_position;
 
 void framebuffer_size(GLFWwindow *window, int width, int height);
@@ -51,6 +50,57 @@ const double tick_speed = 1.0 / 200.0;
 // multithreading for chunk gen
 // animate the texture with the most barebones timer countdown and frame increment
 
+typedef struct
+{
+    unsigned vao, vbo;
+    int x, y, z, w, h, d;
+} cube_element;
+
+void make_cube(cube_element *cube, int x, int y, int z, int w, int h, int d)
+{
+    glGenVertexArrays(1, &cube->vao);
+    glGenBuffers(1, &cube->vbo);
+
+    glBindVertexArray(cube->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, cube->vbo);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(block_vertices), block_vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_INT, GL_FALSE, 5 * sizeof(GL_INT), (void *)0);
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 2, GL_INT, GL_FALSE, 5 * sizeof(GL_INT), (void *)(3 * sizeof(GL_INT)));
+    glEnableVertexAttribArray(1);
+
+    cube->x = x;
+    cube->y = y;
+    cube->z = z;
+    cube->w = w;
+    cube->h = h;
+    cube->d = d;
+}
+void draw_cube(cube_element *cube, shader_list *shaders, unsigned int t, unsigned int tw, unsigned int th)
+{
+    mat4 model;
+    glm_mat4_identity(model);
+    glActiveTexture(GL_TEXTURE0 + t);
+    // transform model based on chunk position
+    glm_translate(model, (vec3){cube->x, cube->y, cube->z});
+    glm_scale(model, (vec3){cube->w, cube->h, cube->d});
+    shader_set_mat4x4(shaders, SHADER_COMMON, "model", model);
+    shader_set_int(shaders, SHADER_COMMON, "tex", t);
+    shader_set_vec2(shaders, SHADER_COMMON, "texture_size", (vec2){tw, th});
+
+    glBindVertexArray(cube->vao);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+}
+void move_cube(cube_element *cube, int x, int y, int z)
+{
+    cube->x = x;
+    cube->y = y;
+    cube->z = z;
+}
+
 int main()
 {
     verify(glfwInit(), "glfw failure", __LINE__);
@@ -83,11 +133,19 @@ int main()
     game_world.texture_width /= 16;
     game_world.texture_height /= 16;
 
+    unsigned int debug_twidth, debug_theight;
+    int debug_texture = texture_load_from_bmp(2, "./debug.bmp", &debug_twidth, &debug_theight);
+
     double mouseX = 0, mouseY = 0;
     double lastMouseX = mouseY, lastMouseY = mouseY;
     bool left_held = false, right_held = false;
 
     srand(time(NULL));
+
+    cube_element test_cube = {};
+    make_cube(&test_cube, 0, 16, 0, 1, 1, 1);
+
+    int tick = 0;
 
     double frame_time = 0.0;
     double previous_time = 0.0;
@@ -121,12 +179,12 @@ int main()
 
             process_input(window, &game_world.cam, tick_speed);
             camera_update(&game_world.cam, lastMouseX - mouseX, lastMouseY - mouseY, tick_speed);
-            
+
             camera_position = game_world.cam.position;
-            double cam_block_distance = FLT_MAX;
-            world_chunk_update(&game_world, &cam_block_distance);
+            world_chunk_update(&game_world, tick);
 
             accumulated_time -= tick_speed;
+            ++tick;
         }
 
         double alpha = accumulated_time / tick_speed;
@@ -147,6 +205,15 @@ int main()
         shader_set_mat4x4(&game_world.shaders, SHADER_COMMON, "view", game_world.cam.view);
         shader_set_mat4x4(&game_world.shaders, SHADER_COMMON, "proj", proj);
         world_draw(&game_world);
+
+        if (game_world.placement_chunk)
+        {
+            vec3 tblock_pos = {};
+            chunk_get_position_from_block(game_world.placement_block, tblock_pos, __LINE__);
+            vec3 tchunk_pos = {game_world.placement_chunk->x * CHUNK_EDGE, game_world.placement_chunk->y * CHUNK_EDGE, game_world.placement_chunk->z * CHUNK_EDGE};
+            move_cube(&test_cube, tblock_pos[0] + tchunk_pos[0], tblock_pos[1] + tchunk_pos[1], tblock_pos[2] + tchunk_pos[2]);
+            draw_cube(&test_cube, &game_world.shaders, debug_texture, debug_twidth, debug_theight);
+        }
 
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !left_held)
         {

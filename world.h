@@ -12,6 +12,7 @@ typedef struct
     int lookat_block, placement_block;
     int lookat_block_normal;
     chunk *lookat_chunk, *placement_chunk;
+    double closest_block_distance;
     int lookat_chunk_normal;
     chunk_hashmap chunk_map;
     chunk *draw_chunk_list[100];
@@ -21,7 +22,7 @@ typedef struct
 
 void world_break_block(world *w);
 void world_place_block(world *w);
-void world_chunk_update(world *w, double *lookat_block_distance);
+void world_chunk_update(world *w, int tick);
 void world_exit(world *w);
 void world_draw(world *w);
 

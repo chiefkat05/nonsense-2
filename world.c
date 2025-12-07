@@ -15,12 +15,12 @@ void world_break_block(world *w)
     int x = block_pos[0];
     int y = block_pos[1];
     int z = block_pos[2];
-    int leftb = chunk_get_block_from_position(x - 1, y, z);
-    int rightb = chunk_get_block_from_position(x + 1, y, z);
-    int forwardsb = chunk_get_block_from_position(x, y, z + 1);
-    int backwardsb = chunk_get_block_from_position(x, y, z - 1);
-    int upb = chunk_get_block_from_position(x, y + 1, z);
-    int downb = chunk_get_block_from_position(x, y - 1, z);
+    // int leftb = chunk_get_block_from_position(x - 1, y, z);
+    // int rightb = chunk_get_block_from_position(x + 1, y, z);
+    // int forwardsb = chunk_get_block_from_position(x, y, z + 1);
+    // int backwardsb = chunk_get_block_from_position(x, y, z - 1);
+    // int upb = chunk_get_block_from_position(x, y + 1, z);
+    // int downb = chunk_get_block_from_position(x, y - 1, z);
 
     // if (leftb != -1)
     //     w->lookat_chunk->blocks[leftb].dirty = true;
@@ -75,70 +75,34 @@ void world_break_block(world *w)
 }
 void world_place_block(world *w)
 {
-    int slab_size = CHUNK_EDGE * CHUNK_EDGE;
-    int row_size = CHUNK_EDGE;
-
-    int new_block_pos = -1;
-    int x = w->placement_block % CHUNK_EDGE;
-    int y = (w->placement_block / CHUNK_EDGE) % CHUNK_EDGE;
-    int z = w->placement_block / (CHUNK_EDGE * CHUNK_EDGE);
-    switch (w->lookat_block_normal)
+    if (w->placement_block > -1 && w->placement_block < CHUNK_TOTAL && w->placement_chunk)
     {
-    case 5:
-        // pos z
-        new_block_pos = w->placement_block + slab_size;
-        ++z;
-        break;
-    case 4:
-        // neg z
-        new_block_pos = w->placement_block - slab_size;
-        --z;
-        break;
-    case 3:
-        // pos y
-        new_block_pos = w->placement_block + row_size;
-        ++y;
-        break;
-    case 2:
-        // neg y
-        new_block_pos = w->placement_block - row_size;
-        --y;
-        break;
-    case 1:
-        // pos x
-        new_block_pos = w->placement_block + 1;
-        ++x;
-        break;
-    case 0:
-        // neg x
-        new_block_pos = w->placement_block - 1;
-        --x;
-        break;
-    default:
-        break;
-    }
+        vec3 block_pos = {};
+        chunk_get_position_from_block(w->placement_block, block_pos, __LINE__);
+        vec3 look_block_pos = {};
+        chunk_get_position_from_block(w->lookat_block, look_block_pos, __LINE__);
 
-    if (new_block_pos > -1 && new_block_pos < CHUNK_TOTAL && w->placement_chunk)
-    {
-        w->placement_chunk->blocks[new_block_pos].id = BLOCK_ROCK;
+        if (w->placement_chunk->blocks[w->placement_block].id != BLOCK_NULL)
+        {
+            printf("warning: placing a block where it shouldn't be possible. block %f %f %f is already id %i\n",
+                block_pos[0], block_pos[1], block_pos[2], w->placement_chunk->blocks[w->placement_block].id);
+        }
+        w->placement_chunk->blocks[w->placement_block].id = BLOCK_CHERRY;
         w->placement_chunk->dirty = true;
     }
 }
-void world_chunk_update(world *w, double *lookat_block_distance)
+void world_chunk_manager(world *w, int current_tick)
+{
+
+}
+void world_chunk_update(world *w, int current_tick)
 {
     int neg_world_vision = -(world_local_edge_size / 2);
     int pos_world_vision = (world_local_edge_size / 2);
-    int z_min = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + neg_world_vision;
-    int z_max = (int)(w->cam.real_position[2] / (double)CHUNK_EDGE) + pos_world_vision;
-    int x_min = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + neg_world_vision;
-    int x_max = (int)(w->cam.real_position[0] / (double)CHUNK_EDGE) + pos_world_vision;
-    // int z_min = -20;
-    // int z_max = 20;
-    // int x_min = -20;
-    // int x_max = 20;
-    // this doesn't work and I have literally no idea why
-
-
+    int z_min = ((int)w->cam.real_position[2] / CHUNK_EDGE) + neg_world_vision;
+    int z_max = ((int)w->cam.real_position[2] / CHUNK_EDGE) + pos_world_vision;
+    int x_min = ((int)w->cam.real_position[0] / CHUNK_EDGE) + neg_world_vision;
+    int x_max = ((int)w->cam.real_position[0] / CHUNK_EDGE) + pos_world_vision;
 
     // having y_min and y_max be anything other than -1 to 1 makes some or many (or all) of the pointers to the chunks
     // inside the chunkmap to randomly(? seems consistant) point to a different chunk, thus causing the update
@@ -147,163 +111,184 @@ void world_chunk_update(world *w, double *lookat_block_distance)
     // chunk for some reason. Why this happens is unknown, and frankly nothing should be causing it and I'm pissed.
     // why it specifically doesn't break when y is between these values is also illogical, but less illogical than
     // the bug itself since the bug should not be possible on this mortal plane.
-    // int y_min = (int)(w->cam.position[1] / CHUNK_EDGE) + neg_world_vision;
-    // int y_max = (int)(w->cam.position[1] / CHUNK_EDGE) + pos_world_vision;
-    int y_min = -1;
-    int y_max = 0;
+    int y_min = ((int)w->cam.position[1] / CHUNK_EDGE) + neg_world_vision;
+    int y_max = ((int)w->cam.position[1] / CHUNK_EDGE) + pos_world_vision;
+    // int y_min = -1;
+    // int y_max = 0;
     // printf("------xmin=%i|xmax=%i--------ymin=%i|ymax=%i-----------zmin=%i|zmax=%i------\n",
             // x_min, x_max, y_min, y_max, z_min, z_max);
+    w->closest_block_distance = DBL_MAX;
+
+    bool new_chunk_tick_used = false;
+
     for (int z = z_min; z < z_max; ++z)
     {
         for (int y = y_min; y < y_max; ++y)
         {
             for (int x = x_min; x < x_max; ++x)
             {
-                vec3 chunk_position = {((double)x + 0.5) * (double)CHUNK_EDGE,
-                                       ((double)y + 0.5) * (double)CHUNK_EDGE,
-                                       ((double)z + 0.5) * (double)CHUNK_EDGE};
-                double cam_dist = glm_vec3_distance(chunk_position, w->cam.real_position);
-
+                chunk *right = chunk_map_lookup(&w->chunk_map, x + 1, y, z);
+                chunk *left = chunk_map_lookup(&w->chunk_map, x - 1, y, z);
+                chunk *forwards = chunk_map_lookup(&w->chunk_map, x, y, z + 1);
+                chunk *backwards = chunk_map_lookup(&w->chunk_map, x, y, z - 1);
+                chunk *up = chunk_map_lookup(&w->chunk_map, x, y + 1, z);
+                chunk *down = chunk_map_lookup(&w->chunk_map, x, y - 1, z);
+                
                 int current_id = chunk_map_function(x, y, z);
                 chunk *current = chunk_map_lookup(&w->chunk_map, x, y, z);
-                // chunk *hold = NULL;
-                if (current) // ????????????????????????????????????????????????????????????????
-                {
-                    int chunk_x = current->x;
-                    int chunk_y = current->y;
-                    int chunk_z = current->z;
-                    if (chunk_x != x || chunk_y != y || chunk_z != z)
-                    {
-                        // current->x = x;
-                        // current->y = y;
-                        // current->z = z;
-                        // printf("%p chunk %i %i %i thinks it's %i %i %i\n", current, x, y, z, chunk_x, chunk_y, chunk_z);
-                        // hold = current;
-                        // if (x == -2 && y == 1 && z == -2)
-                        // {
-                            // current = NULL;
-                        // }
-                        // else
-                        // {
-                        // verify(false, "--------------", __LINE__);}
-                    }
-                }
 
-                bool new_chunk = false;
-                if (!current)
-                {
-                    current = (chunk *)calloc(1, sizeof(chunk));
-                    chunk_generation(current, x, y, z);
-                    // printf("making chunk %p at loc %i %i %i\n", current, x, y, z);
-                    chunk_allocate(current);
-                    current->texture_id = w->texture_id;
-                    current->texture_width = w->texture_width;
-                    current->texture_height = w->texture_height;
-
-                    chunk_map_insert(&w->chunk_map, x, y, z, current);
-                    current->dirty = true;
-                    new_chunk = true;
-                    // printf("%p, %p\n", current, hold);
-                    // if (current == hold)
-                    // {
-                    //     verify(false, "wwow", __LINE__);
-                    // }
-                }
-                if (cam_dist < 5.0)
-                {
-                    // printf("currently in chunk %p pos %i %i %i\n", current, x, y, z);
-                }
-
-                chunk *right = NULL;
-                chunk *left = NULL;
-                chunk *forwards = NULL;
-                chunk *backwards = NULL;
-                chunk *up = NULL;
-                chunk *down = NULL;
-                
-                // chunk *right = chunk_map_lookup(&w->chunk_map, x + 1, y, z);
-                // chunk *left = chunk_map_lookup(&w->chunk_map, x - 1, y, z);
-                // chunk *forwards = chunk_map_lookup(&w->chunk_map, x, y, z + 1);
-                // chunk *backwards = chunk_map_lookup(&w->chunk_map, x, y, z - 1);
-                // chunk *up = chunk_map_lookup(&w->chunk_map, x, y + 1, z);
-                // chunk *down = chunk_map_lookup(&w->chunk_map, x, y - 1, z);
-                
-                // if (new_chunk)
+                // if (current_tick % 10 == 0 && !new_chunk_tick_used)
                 // {
-                //     if (right)
-                //         right->dirty = true;
-                //     if (left)
-                //         left->dirty = true;
-                //     if (forwards)
-                //         forwards->dirty = true;
-                //     if (backwards)
-                //         backwards->dirty = true;
-                //     if (up)
-                //         up->dirty = true;
-                //     if (down)
-                //         down->dirty = true;
-                // }
-                
-                int temp_lookat = -1;
-                update_chunk(current, left, right, forwards, backwards, up, down,
-                                &w->cam, &temp_lookat, &w->lookat_block_normal, lookat_block_distance, &w->lookat_chunk_normal);
+                    // if (current)
+                    // {
+                    //     if (w->chunk_map.arr[current_id]->x != x || w->chunk_map.arr[current_id]->y != y || w->chunk_map.arr[current_id]->z != z)
+                    //     {
+                    //         vec3 loc = {current->x, current->y, current->z};
+                    //         printf("%i %i %i problem, %f %f %f\n", x, y, z, loc[0], loc[1], loc[2]);
+                    //         // chunk_map_remove(&w->chunk_map, x, y, z);
+                    //         // current = NULL;
+                    //     }
+                    // }
 
-                if (temp_lookat == -1) // some errors with trying to place blocks at certain angles please make sure it's all up to code here
+                    bool new_chunk = false;
+                    // if (!w->chunk_map.arr[current_id])
+                    // {
+                    //     w->chunk_map.arr[current_id] = (chunk *)calloc(1, sizeof(chunk));
+                    //     chunk_generation(w->chunk_map.arr[current_id], x, y, z);
+                    //     chunk_allocate(w->chunk_map.arr[current_id]);
+                    //     w->chunk_map.arr[current_id]->texture_id = w->texture_id;
+                    //     w->chunk_map.arr[current_id]->texture_width = w->texture_width;
+                    //     w->chunk_map.arr[current_id]->texture_height = w->texture_height;
+
+                    //     chunk_map_insert(&w->chunk_map, w->chunk_map.arr[current_id], __LINE__);
+                    //     w->chunk_map.arr[current_id]->dirty = true;
+                    //     new_chunk = true;
+                    // }
+                    if (!current)
+                    {
+                        current = (chunk *)calloc(1, sizeof(chunk));
+                        chunk_generation(current, x, y, z);
+                        chunk_allocate(current);
+                        current->texture_id = w->texture_id;
+                        current->texture_width = w->texture_width;
+                        current->texture_height = w->texture_height;
+
+                        chunk_map_insert(&w->chunk_map, current, __LINE__);
+                        current->dirty = true;
+                        new_chunk = true;
+                    }
+                    
+                    if (new_chunk)
+                    {
+                        if (right)
+                            right->dirty = true;
+                        if (left)
+                            left->dirty = true;
+                        if (forwards)
+                            forwards->dirty = true;
+                        if (backwards)
+                            backwards->dirty = true;
+                        if (up)
+                            up->dirty = true;
+                        if (down)
+                            down->dirty = true;
+                    }
+                    // new_chunk_tick_used = true;
+                // }
+                if (!current)
                     continue;
 
-                w->lookat_chunk = current;
-                vec3 current_chunk_position = {current->x, current->y, current->z};
-                vec3 new_chunk_position = {};
-                glm_vec3_copy(current_chunk_position, new_chunk_position);
-                w->placement_block = temp_lookat;
-                switch (w->lookat_chunk_normal)
-                {
-                case 0: // x
-                    --new_chunk_position[0];
-                    w->placement_block += CHUNK_EDGE;
-                    break;
-                case 1:
-                    ++new_chunk_position[0];
-                    w->placement_block -= CHUNK_EDGE;
-                    break;
-                case 2: // y
-                    --new_chunk_position[1];
-                    w->placement_block += CHUNK_EDGE * CHUNK_EDGE;
-                    break;
-                case 3:
-                    ++new_chunk_position[1];
-                    w->placement_block -= CHUNK_EDGE * CHUNK_EDGE;
-                    break;
-                case 4: // z
-                    --new_chunk_position[2];
-                    w->placement_block += CHUNK_TOTAL;
-                    break;
-                case 5:
-                    ++new_chunk_position[2];
-                    w->placement_block -= CHUNK_TOTAL;
-                    break;
-                }
-                w->lookat_block = temp_lookat;
-                w->placement_chunk = chunk_map_lookup(&w->chunk_map, new_chunk_position[0], new_chunk_position[1], new_chunk_position[2]);
+                int temp_lookat = -1;
+                update_chunk(current, left, right, forwards, backwards, up, down,
+                                &w->cam, &temp_lookat, &w->lookat_block_normal, &w->closest_block_distance, &w->lookat_chunk_normal);
+
+                // if (temp_lookat == -1) // some errors with trying to place blocks at certain angles please make sure it's all up to code here
+                //     continue;
+
+                // w->lookat_chunk = current;
+                // vec3 current_chunk_position = {current->x, current->y, current->z};
+                // vec3 new_chunk_position = {};
+                // glm_vec3_copy(current_chunk_position, new_chunk_position);
+                // w->placement_block = temp_lookat;
+                // switch (w->lookat_chunk_normal)
+                // {
+                // case 0: // x
+                //     --new_chunk_position[0];
+                //     w->placement_block += CHUNK_EDGE;
+                //     break;
+                // case 1:
+                //     ++new_chunk_position[0];
+                //     w->placement_block -= CHUNK_EDGE;
+                //     break;
+                // case 2: // y
+                //     --new_chunk_position[1];
+                //     w->placement_block += CHUNK_EDGE * CHUNK_EDGE;
+                //     break;
+                // case 3:
+                //     ++new_chunk_position[1];
+                //     w->placement_block -= CHUNK_EDGE * CHUNK_EDGE;
+                //     break;
+                // case 4: // z
+                //     --new_chunk_position[2];
+                //     w->placement_block += CHUNK_TOTAL;
+                //     break;
+                // case 5:
+                //     ++new_chunk_position[2];
+                //     w->placement_block -= CHUNK_TOTAL;
+                //     break;
+                // }
+                // switch (w->lookat_block_normal)
+                // {
+                // case 5:
+                //     // pos z
+                //     w->placement_block += CHUNK_SLAB;
+                //     break;
+                // case 4:
+                //     // neg z
+                //     w->placement_block -= CHUNK_SLAB;
+                //     break;
+                // case 3:
+                //     // pos y
+                //     w->placement_block += CHUNK_EDGE;
+                //     break;
+                // case 2:
+                //     // neg y
+                //     w->placement_block -= CHUNK_EDGE;
+                //     break;
+                // case 1:
+                //     // pos x
+                //     w->placement_block += 1;
+                //     break;
+                // case 0:
+                //     // neg x
+                //     w->placement_block -= 1;
+                //     break;
+                // default:
+                //     break;
+                // }
+                // w->lookat_block = temp_lookat;
+                // w->placement_chunk = chunk_map_lookup(&w->chunk_map, new_chunk_position[0], new_chunk_position[1], new_chunk_position[2]);
             }
         }
     }
+    // chunk_map_print(&w->chunk_map);
+    // chunk_duplicate_chunk
 }
 void world_draw(world *w)
 {
     // make this a function or something
     int neg_world_vision = -(world_local_edge_size / 2);
     int pos_world_vision = (world_local_edge_size / 2);
-    int z_min = (int)(w->cam.real_position[2] / CHUNK_EDGE) + neg_world_vision;
-    int z_max = (int)(w->cam.real_position[2] / CHUNK_EDGE) + pos_world_vision;
-    int x_min = (int)(w->cam.real_position[0] / CHUNK_EDGE) + neg_world_vision;
-    int x_max = (int)(w->cam.real_position[0] / CHUNK_EDGE) + pos_world_vision;
+    int z_min = ((int)w->cam.real_position[2] / CHUNK_EDGE) + neg_world_vision;
+    int z_max = ((int)w->cam.real_position[2] / CHUNK_EDGE) + pos_world_vision;
+    int x_min = ((int)w->cam.real_position[0] / CHUNK_EDGE) + neg_world_vision;
+    int x_max = ((int)w->cam.real_position[0] / CHUNK_EDGE) + pos_world_vision;
     // maybe?
     int y_min = ((int)w->cam.real_position[1] / CHUNK_EDGE) + neg_world_vision;
     int y_max = ((int)w->cam.real_position[1] / CHUNK_EDGE) + pos_world_vision;
 
     // int y_min = -1;
-    // int y_max = 4;
+    // int y_max = 0;
 
     for (int z = z_min; z < z_max; ++z)
     {

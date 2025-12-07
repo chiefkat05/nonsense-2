@@ -28,6 +28,20 @@ bmp_data read_bmp(const char *path)
     verify(image.data, "failed to allocate buffer memory", __LINE__);
     fread(image.data, 4, image.width * image.height, input);
 
+    // colors seem off, but that might not be this?
+    // for (int i = 0; i < image.width * image.height; i += 4)
+    // {
+    //     byte red = image.data[i + 0];
+    //     byte green = image.data[i + 1];
+    //     byte blue = image.data[i + 2];
+    //     byte alpha = image.data[i + 3];
+
+    //     image.data[i + 0] = alpha;
+    //     image.data[i + 1] = blue;
+    //     image.data[i + 2] = green;
+    //     image.data[i + 3] = red;
+    // }
+
     return image;
 }
 

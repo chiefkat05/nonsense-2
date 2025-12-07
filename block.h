@@ -63,7 +63,8 @@ static const vec2 texture_locs[] =
     {-1.0, -1.0},
     {0.0, 1.0},
     {0.0, 1.0},
-    {2.0, 1.0}
+    {2.0, 1.0},
+    {1.0, 1.0}
 };
 
 typedef enum
@@ -71,7 +72,8 @@ typedef enum
     BLOCK_NULL,
     BLOCK_GRASS,
     BLOCK_FLOWER,
-    BLOCK_ROCK
+    BLOCK_ROCK,
+    BLOCK_CHERRY
 } block_id;
 typedef struct
 {

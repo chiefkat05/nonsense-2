@@ -10,9 +10,9 @@ int chunk_dda_test(chunk *c, vec3 pos, vec3 dir, int *b_norm, int *ch_norm)
     int y = floor(pos[1]) - chunk_y;
     int z = floor(pos[2]) - chunk_z;
 
-    double x_step = (fabs(dir[0])/dir[0]);
-    double y_step = (fabs(dir[1])/dir[1]);
-    double z_step = (fabs(dir[2])/dir[2]);
+    int x_step = (fabs(dir[0])/dir[0]);
+    int y_step = (fabs(dir[1])/dir[1]);
+    int z_step = (fabs(dir[2])/dir[2]);
 
 
     double maxx = 0.0;
@@ -54,7 +54,7 @@ int chunk_dda_test(chunk *c, vec3 pos, vec3 dir, int *b_norm, int *ch_norm)
     block_norm = -1;
     while ((block == -1 || c->blocks[block].id == BLOCK_NULL))
     {
-        block = chunk_get_block_from_position(x, y, z);
+        // block = chunk_get_block_from_position(x, y, z);
         if (maxx < maxy && maxx < maxz)
         {
             x += x_step;
@@ -117,6 +117,8 @@ int chunk_dda_test(chunk *c, vec3 pos, vec3 dir, int *b_norm, int *ch_norm)
     }
     *ch_norm = chunk_norm;
     *b_norm = block_norm;
+
+    // printf("see block %i %i %i at chunk %i %i %i\n", x, y, z, chunk_x, chunk_y, chunk_z);
     return block;
 }
 
@@ -240,27 +242,27 @@ void chunk_free(chunk *c)
 }
 
 // this should be working whyyyyy
-void chunk_build_partial_mesh(chunk *c)
-{
-    for (int i = 0; i < CHUNK_TOTAL; ++i)
-    {
-        if (!c->blocks[i].dirty)
-            continue;
+// void chunk_build_partial_mesh(chunk *c)
+// {
+//     for (int i = 0; i < CHUNK_TOTAL; ++i)
+//     {
+//         if (!c->blocks[i].dirty)
+//             continue;
         
-        int *mesh = c->mesh;
-        mesh += c->blocks[i].mesh_location;
-        int *mesh_top_half = mesh + c->blocks[i].size;
-        // if (c->blocks[i].id == BLOCK_NULL)
-        // {
-        memcpy(mesh, mesh_top_half, c->mesh_size - c->blocks[i].size);
-        c->mesh_size -= c->blocks[i].size;
-        // }
+//         int *mesh = c->mesh;
+//         mesh += c->blocks[i].mesh_location;
+//         int *mesh_top_half = mesh + c->blocks[i].size;
+//         // if (c->blocks[i].id == BLOCK_NULL)
+//         // {
+//         memcpy(mesh, mesh_top_half, c->mesh_size - c->blocks[i].size);
+//         c->mesh_size -= c->blocks[i].size;
+//         // }
 
-        printf("removed block of size %i, mesh size now %i.\n", c->blocks[i].size, c->mesh_size);
+//         printf("removed block of size %i, mesh size now %i.\n", c->blocks[i].size, c->mesh_size);
 
-        c->blocks[i].dirty = false;
-    }
-}
+//         c->blocks[i].dirty = false;
+//     }
+// }
 void chunk_build_mesh(chunk *c, chunk *left, chunk *right, chunk *forwards, chunk *backwards, chunk *up, chunk *down)
 {
     verify(c, "cannot build chunk mesh, chunk does not exist.", __LINE__);
@@ -470,7 +472,9 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
 
     vec3 block_position = {};
     if (!chunk_get_position_from_block(block, block_position, __LINE__))
+    {
         return;
+    }
 
     vec3 global_block_position = {c->x * CHUNK_EDGE + block_position[0],
                                 c->y * CHUNK_EDGE + block_position[1],
@@ -479,6 +483,7 @@ void update_chunk(chunk *c, chunk *left_chunk, chunk *right_chunk, chunk *forwar
     double block_dist = glm_vec3_distance2(global_block_position, cam->position);
     if (block_dist < *lookat_block_distance)
     {
+        // printf("d'uh, block dist was %f before but %f is better so we're going with that. Okay boss?\n", *lookat_block_distance, block_dist);
         *lookat_block_distance = block_dist;
         *lookat_block = block;
     }
@@ -491,6 +496,7 @@ void draw_chunk(chunk *c, shader_list *shaders)
     glm_translate(model, (vec3){c->x * CHUNK_EDGE, c->y * CHUNK_EDGE, c->z * CHUNK_EDGE});
     shader_set_mat4x4(shaders, SHADER_COMMON, "model", model);
     shader_set_int(shaders, SHADER_COMMON, "tex", 1);
+    glActiveTexture(GL_TEXTURE0 + 1);
     shader_set_vec2(shaders, SHADER_COMMON, "texture_size", (vec2){c->texture_width, c->texture_height});
 
     glBindVertexArray(c->vao);

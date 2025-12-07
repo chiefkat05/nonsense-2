@@ -4,6 +4,10 @@ void chunk_map_alloc(chunk_hashmap *map, uint32 size)
 {
     map->arr = (chunk **)calloc(size, sizeof(chunk *));
     verify(map->arr, "failed to allocate chunk hashmap", __LINE__);
+    for (int i = 0; i < size; ++i)
+    {
+        map->arr[i] = NULL;
+    }
     map->count = size;
 }
 void chunk_map_free(chunk_hashmap *map)
@@ -37,19 +41,31 @@ int chunk_map_function(int x, int y, int z)
 }
 void chunk_map_rehash(chunk_hashmap *map)
 {
-    int new_size = map->count * 2;
-    chunk **new_map_arr = (chunk **)calloc(new_size, sizeof(chunk *));
-    verify(new_map_arr, "failed to allocate memory for chunk map rehash", new_size);
-    memcpy(new_map_arr, map->arr, map->count * sizeof(chunk *));
-    free(map->arr);
-    map->arr = new_map_arr;
-    map->count *= 2;
+    // int new_size = map->count * 2;
+    // chunk **new_map_arr = (chunk **)calloc(new_size, sizeof(chunk *));
+    // verify(new_map_arr, "failed to allocate memory for chunk map rehash", new_size);
+    // for (int i = 0; i < map->count * 2; ++i)
+    // {
+    //     new_map_arr[i] = NULL;
+    // }
+    // memcpy(new_map_arr, map->arr, map->count * sizeof(chunk *));
+    // free(map->arr);
+    // map->arr = new_map_arr;
+    // map->count *= 2;
 }
-void chunk_map_insert(chunk_hashmap *map, int x, int y, int z, chunk *p_chunk)
+void chunk_map_insert(chunk_hashmap *map, chunk *p_chunk, int line)
 {
-    unsigned int index = chunk_map_function(x, y, z);
+    verify(p_chunk, "trying to insert NULL chunk into chunk map", line);
+    unsigned int index = chunk_map_function(p_chunk->x, p_chunk->y, p_chunk->z);
 
-    // printf("inserting %i %i %i chunk %p\n", x, y, z, p_chunk);
+    // printf("inserting %i %i %i chunk %p in index %i\n", p_chunk->x, p_chunk->y, p_chunk->z, p_chunk, index);
+    // for (int i = 0; i < map->count; ++i)
+    // {
+    //     if (map->arr[i] == p_chunk)
+    //     {
+    //         printf("chunk already exists whoa\n");
+    //     }
+    // }
 
     while (index >= map->count)
     {
