@@ -23,6 +23,7 @@ void chunk_map_free(chunk_hashmap *map)
     free(map->arr);
     map->count = 0;
 }
+static const int hash_edge_length = 1024;
 int chunk_map_function(int x, int y, int z)
 {
     // ! idea: make this 'not' perfectly unique, by subtracting the player position or something, keeping the hash function always
@@ -35,37 +36,30 @@ int chunk_map_function(int x, int y, int z)
     if (y < 0) out_y += 1;
     if (z < 0) out_z += 1;
 
-    int index = out_z * world_local_edge_size * world_local_edge_size + out_y * world_local_edge_size + out_x;
+    int index = out_z * hash_edge_length * hash_edge_length + out_y * hash_edge_length + out_x;
 
     return index;
 }
 void chunk_map_rehash(chunk_hashmap *map)
 {
-    // int new_size = map->count * 2;
-    // chunk **new_map_arr = (chunk **)calloc(new_size, sizeof(chunk *));
-    // verify(new_map_arr, "failed to allocate memory for chunk map rehash", new_size);
-    // for (int i = 0; i < map->count * 2; ++i)
-    // {
-    //     new_map_arr[i] = NULL;
-    // }
-    // memcpy(new_map_arr, map->arr, map->count * sizeof(chunk *));
-    // free(map->arr);
-    // map->arr = new_map_arr;
-    // map->count *= 2;
+    int new_size = map->count * 2;
+    chunk **new_map_arr = (chunk **)calloc(new_size, sizeof(chunk *));
+    verify(new_map_arr, "failed to allocate memory for chunk map rehash", new_size);
+    for (int i = 0; i < map->count * 2; ++i)
+    {
+        new_map_arr[i] = NULL;
+    }
+    memcpy(new_map_arr, map->arr, map->count * sizeof(chunk *));
+    free(map->arr);
+    map->arr = new_map_arr;
+    map->count *= 2;
 }
 void chunk_map_insert(chunk_hashmap *map, chunk *p_chunk, int line)
 {
+    printf("insertion start\n");
     verify(p_chunk, "trying to insert NULL chunk into chunk map", line);
     unsigned int index = chunk_map_function(p_chunk->x, p_chunk->y, p_chunk->z);
-
-    // printf("inserting %i %i %i chunk %p in index %i\n", p_chunk->x, p_chunk->y, p_chunk->z, p_chunk, index);
-    // for (int i = 0; i < map->count; ++i)
-    // {
-    //     if (map->arr[i] == p_chunk)
-    //     {
-    //         printf("chunk already exists whoa\n");
-    //     }
-    // }
+    printf("inserting %i %p\n", index, p_chunk);
 
     while (index >= map->count)
     {

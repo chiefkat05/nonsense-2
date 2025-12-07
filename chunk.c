@@ -200,6 +200,11 @@ void chunk_generation(chunk *c, int _x, int _y, int _z)
 
                 if (c->y > -1)
                     continue;
+                if (c->y < -1)
+                {
+                    landscape[x][y][z] = BLOCK_ROCK;
+                    continue;
+                }
 
                 double x_input = (double)x / (double)CHUNK_EDGE;
                 double z_input = (double)z / (double)CHUNK_EDGE;

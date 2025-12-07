@@ -2,6 +2,7 @@
 #include "world.h"
 #include "definitions.h"
 #include <png.h>
+#include "debug.h"
 
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
@@ -9,7 +10,7 @@ static bool global_resize_alert;
 static int global_window_width;
 static int global_window_height;
 
-unsigned int world_local_edge_size = 8;
+unsigned int world_local_edge_size = 6;
 float *camera_position;
 
 void framebuffer_size(GLFWwindow *window, int width, int height);
@@ -30,76 +31,15 @@ int ui_vertices[] = {
      1,  1, 0,
     -1,  1, 0
 };
-void make_ui_element()
-{
-
-}
 
 const double tick_speed = 1.0 / 200.0;
 
-// today's tasks:
-// dda or voxel-raycast for the looking-at-blocks algorithm
-// png loading with 1 simple texture on screen
-
-// if you have time (but you can just take a break if you want):
+// today:
+// local-only hashmap
 // simple noise world generation
-// get windows build working
 
-// local-only hashmap is still maybe on the table to avoid heavy memory usage when travelling to outer blocks
 // collision detection + gravity
 // multithreading for chunk gen
-// animate the texture with the most barebones timer countdown and frame increment
-
-typedef struct
-{
-    unsigned vao, vbo;
-    int x, y, z, w, h, d;
-} cube_element;
-
-void make_cube(cube_element *cube, int x, int y, int z, int w, int h, int d)
-{
-    glGenVertexArrays(1, &cube->vao);
-    glGenBuffers(1, &cube->vbo);
-
-    glBindVertexArray(cube->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, cube->vbo);
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(block_vertices), block_vertices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_INT, GL_FALSE, 5 * sizeof(GL_INT), (void *)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 2, GL_INT, GL_FALSE, 5 * sizeof(GL_INT), (void *)(3 * sizeof(GL_INT)));
-    glEnableVertexAttribArray(1);
-
-    cube->x = x;
-    cube->y = y;
-    cube->z = z;
-    cube->w = w;
-    cube->h = h;
-    cube->d = d;
-}
-void draw_cube(cube_element *cube, shader_list *shaders, unsigned int t, unsigned int tw, unsigned int th)
-{
-    mat4 model;
-    glm_mat4_identity(model);
-    glActiveTexture(GL_TEXTURE0 + t);
-    // transform model based on chunk position
-    glm_translate(model, (vec3){cube->x, cube->y, cube->z});
-    glm_scale(model, (vec3){cube->w, cube->h, cube->d});
-    shader_set_mat4x4(shaders, SHADER_COMMON, "model", model);
-    shader_set_int(shaders, SHADER_COMMON, "tex", t);
-    shader_set_vec2(shaders, SHADER_COMMON, "texture_size", (vec2){tw, th});
-
-    glBindVertexArray(cube->vao);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-}
-void move_cube(cube_element *cube, int x, int y, int z)
-{
-    cube->x = x;
-    cube->y = y;
-    cube->z = z;
-}
 
 int main()
 {
